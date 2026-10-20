@@ -741,7 +741,7 @@ async function handle(request, env) {
         const clIds = (await J.get(env, 'client_ids', [])).slice(0, 40); // лимит подзапросов Worker
         let sent = 0, failed = 0;
         for (const tid of clIds) {
-          const r = await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text: CE_BRAND() + ' <b>SAHAR</b>\n' + esc(text), reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=17' } }]] } });
+          const r = await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text: CE_BRAND() + ' <b>SAHAR</b>\n' + esc(text), reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=18' } }]] } });
           if (r && r.ok) sent++; else failed++;
         }
         return json({ ok: true, sent, failed });
@@ -792,7 +792,7 @@ async function sendOrders(env, tid, own = false) {
     list.push('#' + o.id + ' · ' + CE_STAT(o.status) + ' ' + (STATUS_RU[o.status] || '—') + ' · <b>' + esc(amt) + '</b>' + (own ? '' : ' · ' + esc(o.client_name || (o.client || {}).first_name || '—')) + (own && o.tracking ? ' · 📍' + esc(o.tracking) : ''));
     if (list.length >= 5) break;
   }
-  const kb = own ? { inline_keyboard: [[{ text: 'Открыть магазин', icon_custom_emoji_id: CE.shop, web_app: { url: env.WEBAPP_URL + '?v=17' } }]] } : undefined;
+  const kb = own ? { inline_keyboard: [[{ text: 'Открыть магазин', icon_custom_emoji_id: CE.shop, web_app: { url: env.WEBAPP_URL + '?v=18' } }]] } : undefined;
   await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', ...(kb ? { reply_markup: kb } : {}),
     text: list.length ? (own ? CE_BRAND() + ' <b>Ваши заказы</b>\n\n' : tgE(CE.list, '🗂') + ' <b>Последние заказы</b>\n\n') + list.join('\n')
       : (own ? TEXTS.buyerOrdersEmpty() : TEXTS.ownerOrdersEmpty()) });
@@ -800,7 +800,7 @@ async function sendOrders(env, tid, own = false) {
 
 async function handleUpdate(env, u) {
   try { await ensureProfile(env); } catch (e) {}
-  const SHOP_URL = env.WEBAPP_URL + '?v=17';
+  const SHOP_URL = env.WEBAPP_URL + '?v=18';
   const shopBtn = (t) => ({ text: t, icon_custom_emoji_id: CE.shop, web_app: { url: SHOP_URL } });
   if (u.message) {
     const m = u.message, tid = m.from.id;
@@ -821,7 +821,7 @@ async function handleUpdate(env, u) {
           await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text: TEXTS.ownerStart(),
             reply_markup: { inline_keyboard: [
               [{ text: 'Последние заказы', icon_custom_emoji_id: CE.list, callback_data: 'owner_orders' }],
-              [{ text: 'Открыть CRM', icon_custom_emoji_id: CE.shop, web_app: { url: env.WEBAPP_URL + 'admin.html?v=17' } }],
+              [{ text: 'Открыть CRM', icon_custom_emoji_id: CE.shop, web_app: { url: env.WEBAPP_URL + 'admin.html?v=18' } }],
               [shopBtn('Открыть магазин')],
             ] } });
           try { await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: SHOP_URL } } }); } catch (e) {}
