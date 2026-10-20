@@ -158,7 +158,9 @@ header{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--bg) 7
 .ovl.chat-mode{display:flex;flex-direction:column;overflow:hidden;top:0;bottom:auto;height:var(--vvh,100dvh);padding:calc(env(safe-area-inset-top,0px) + 10px) 14px calc(env(safe-area-inset-bottom,0px) + 10px)}
 .chat-mode #msgBody{flex:1;display:flex;flex-direction:column;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .chat-mode .mtabs{flex:none}
-#chatBox{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.chat-mode #ovlBody{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.chat-mode .ovl-back,.chat-mode h2,.chat-mode .sh-sub,.chat-mode .qr-chips,.chat-mode .chat-input,.chat-mode .attach-row{flex:none}
+#chatBox{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .ovl.open{transform:none}
 .ovl-back{display:inline-flex;align-items:center;gap:6px;margin-bottom:10px;cursor:pointer;font-weight:700;color:var(--muted);font-size:14px;background:var(--cream);border:none;border-radius:19px;padding:7px 14px 7px 10px}
 .ovl-title{font-size:25px;font-weight:800;letter-spacing:-.02em}
