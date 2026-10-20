@@ -13,13 +13,13 @@ try{
   let catalog=[];
   await step('2) catalog 10+ products', async()=>{const r=await get('/api/catalog'); if(!r.j||!r.j.products||r.j.products.length<10)throw 'products '+(r.j&&r.j.products&&r.j.products.length);catalog=r.j.products;});
   await step('3) verify client (ID ok)', async()=>{const r=await post('/api/verify',CLIENT); if(!r.j||!r.j.ok)throw 'status '+r.s;});
-  await step('4) forged hash rejected 403', async()=>{const r=await post('/api/verify',CLIENT+'&hash=forged'); if(r.s!==403)throw 'HTTP '+r.s;});
+  await step('4) forged hash rejected 403', async()=>{const r=await post('/api/verify','hash=forged&'+CLIENT); if(r.s!==403)throw 'HTTP '+r.s;});
   let orderId=0;
   await step('5) order created + stock decremented', async()=>{
     const items=catalog.filter(p=>p.stock>0).slice(0,2).map(p=>({id:p.id,qty:1}));
     const before=catalog.find(p=>p.id===items[0].id).stock;
-    const r=await post('/api/order',CLIENT,{items,address:'Tashkent e2e',phone:'+998885310000',comment:'e2e',payment:'cash'});
-    if(!r.j||!r.j.ok)throw JSON.stringify(r.j); orderId=r.j.id;
+    const r=await post('/api/order',CLIENT,{items,address:'Tashkent e2e',phone:'+998885310000',comment:'e2e',payment_method:'cash'});
+    if(!r.j||!r.j.order_id)throw JSON.stringify(r.j); orderId=r.j.order_id;
     const c2=await get('/api/catalog'); const after=c2.j.products.find(p=>p.id===items[0].id).stock;
     if(after!==before-1)throw 'stock '+before+'->'+after;
   });
