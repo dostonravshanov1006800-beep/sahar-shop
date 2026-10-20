@@ -60,7 +60,8 @@ img{-webkit-user-drag:none}
 #main{padding:0 16px 20px}
 header{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop-filter:blur(28px) saturate(1.8);-webkit-backdrop-filter:blur(28px) saturate(1.8);border-bottom:1px solid color-mix(in srgb,var(--hair) 70%,transparent);padding:calc(env(safe-area-inset-top,0px) + 8px) 16px 10px}
 .hrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.brand{line-height:1;cursor:default;display:flex;align-items:center;gap:8px}
+.brand{line-height:1;cursor:default;display:flex;align-items:center;gap:9px}
+.brand-ava{width:36px;height:36px;border-radius:50%;object-fit:cover;flex:none;box-shadow:0 0 0 1.5px color-mix(in srgb,var(--bg) 60%,transparent),0 3px 10px rgba(56,36,20,.22)}
 .brand .bflower{color:var(--caramel-deep)}
 .brand .bt{line-height:1}
 .brand .logo{font-size:22px;font-weight:800;letter-spacing:.09em}
@@ -328,6 +329,7 @@ nav.kb{transform:translateY(110%)}
   <header>
     <div class="hrow">
       <div class="brand">
+        <img class="brand-ava" src="assets/bot-avatar.jpg" alt="SAHAR">
         <span class="bt"><span class="logo">SAHAR</span></span>
       </div>
       <div class="hbtns">
