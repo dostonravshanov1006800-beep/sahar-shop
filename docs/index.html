@@ -231,12 +231,15 @@ nav.kb{transform:translateY(110%)}
 /* чат */
 #chatBox{display:flex;flex-direction:column;gap:7px;padding:8px 0 14px}
 .day-sep{align-self:center;font-size:11px;font-weight:700;color:var(--muted);background:var(--cream);border-radius:12px;padding:4px 12px;margin:4px 0}
-.bub{max-width:78%;padding:10px 14px;border-radius:18px;font-size:15px;font-weight:500;animation:fadeUp .25s ease;letter-spacing:-.01em}
+.bub{max-width:78%;padding:10px 14px;border-radius:18px;font-size:15px;font-weight:500;animation:fadeUp .25s ease;letter-spacing:-.01em;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
+.bub.photo{padding:5px}
+.bub.photo .bt{padding:2px 4px 1px}
 .bub.me{align-self:flex-end;background:var(--pri);color:var(--pri-fg);border-bottom-right-radius:6px}
 .bub.them{align-self:flex-start;background:var(--cream);color:var(--text);border-bottom-left-radius:6px;border:1px solid var(--hair)}
 .bub .bt{display:flex;justify-content:flex-end;align-items:center;gap:4px;font-size:10px;opacity:.65;font-weight:700;margin-top:3px}
 .bub .tick{font-size:10px;letter-spacing:-2px}
-.bub img.bphoto{max-width:min(70vw,280px);max-height:280px;object-fit:cover;border-radius:16px;display:block;cursor:pointer}
+.bub img.bphoto{width:min(70vw,280px);max-height:280px;object-fit:cover;border-radius:14px;display:block;cursor:pointer}
+.bub.photo img.bphoto{border-radius:15px}
 .bub.me img.bphoto{border-bottom-right-radius:6px}
 .bub.them img.bphoto{border-bottom-left-radius:6px}
 .paycard{position:relative;overflow:hidden;border-radius:20px;background:linear-gradient(150deg,#0A1A10 0%,#0E2114 52%,#123117 100%);padding:18px 18px 16px;color:#fff;max-width:400px;margin:16px auto 0;box-shadow:0 18px 40px rgba(10,26,16,.45),inset 0 1px 0 rgba(255,255,255,.09)}
@@ -277,11 +280,11 @@ nav.kb{transform:translateY(110%)}
 .photo-view{position:fixed;inset:0;z-index:120;background:rgba(20,12,8,.95);display:flex;align-items:center;justify-content:center;padding:24px}
 .photo-view img{max-width:100%;max-height:100%;border-radius:16px}
 .pv-close{position:absolute;top:calc(env(safe-area-inset-top,0px) + 14px);right:14px;width:44px;height:44px;border-radius:50%;border:none;background:rgba(255,255,255,.16);color:#fff;font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.qr-chips{display:flex;gap:7px;overflow-x:auto;padding:4px 0 8px;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 86%,transparent);mask-image:linear-gradient(90deg,#000 86%,transparent)}
-.qr-chip{flex:none;padding:9px 14px;background:var(--card);border:1.5px solid var(--hair);color:var(--text);border-radius:19px;font-size:12.5px;font-weight:700;cursor:pointer}
+.qr-chips{display:flex;flex-wrap:wrap;gap:7px;padding:4px 0 8px}
+.qr-chip{padding:8px 13px;background:var(--card);border:1.5px solid var(--hair);color:var(--text);border-radius:19px;font-size:12px;font-weight:700;cursor:pointer}
 .qr-chip:active{border-color:var(--caramel-deep)}
 .chat-input{display:flex;gap:8px;padding:10px 0 0;flex:none;align-items:flex-end}
-.chat-input textarea{flex:1;background:var(--card);border:1px solid var(--hair);border-radius:20px;padding:11px 16px;min-height:44px;max-height:92px;color:var(--text);font:500 15px inherit;font-family:inherit;outline:none;resize:none;overflow-y:auto;line-height:1.4}
+.chat-input textarea{flex:1;background:var(--card);border:1px solid var(--hair);border-radius:20px;padding:12px 16px;min-height:46px;max-height:92px;color:var(--text);font:500 15px inherit;font-family:inherit;outline:none;resize:none;overflow-y:auto;line-height:20px}
 .chat-input .cbtn{width:44px;height:44px;border-radius:50%;border:none;background:var(--pri);color:var(--pri-fg);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
 .chat-input .cbtn.ghost{background:var(--cream);border:1px solid var(--hair);color:var(--nav-ink)}
 .chat-input .cbtn[disabled]{opacity:.35;pointer-events:none}
@@ -1203,7 +1206,7 @@ async function loadChat(){
         ticks = `<span class="tick">${read ? '✓✓' : '✓'}</span>`;
       }
       const u = escHtml(m.photo_url || '');
-      html += `<div class="bub ${mine?'me':'them'}">${u?`<img class="bphoto" src="${u}" onclick="viewPhoto('${u}')">`:''}${m.text?escHtml(m.text):''}<div class="bt"><span>${(m.at||'').slice(11,16)}</span>${ticks}</div></div>`;
+      html += `<div class="bub ${mine?'me':'them'}${u&&!m.text?' photo':''}">${u?`<img class="bphoto" src="${u}" onclick="viewPhoto('${u}')">`:''}${m.text?escHtml(m.text):''}<div class="bt"><span>${(m.at||'').slice(11,16)}</span>${ticks}</div></div>`;
     }
     box.innerHTML = html || `<div class="empty" style="padding:26px 8px">${t('chatSub')}</div>`;
     box.scrollTop = box.scrollHeight;
