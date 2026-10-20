@@ -86,6 +86,12 @@ const STC = s => ({new:'st-new',awaiting_payment:'st-awaiting_payment',paid:'st-
 const NEXT = { new:['confirmed','cancelled'], awaiting_payment:['paid','cancelled'], paid:['confirmed','refunded'], confirmed:['packing','cancelled'], packing:['shipping'], shipping:['delivered'], delivered:[], cancelled:['new'], refunded:[] };
 const BTNT = { confirmed:'✅ Подтвердить', cancelled:'❌ Отменить', paid:'💰 Оплачен', refunded:'↩️ Возврат', packing:'📦 Собирается', shipping:'🚚 В доставку', delivered:'🏁 Доставлен', new:'↩️ Возвратить' };
 function escHtml(x){ return String(x||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+let busy = false;
+async function guard(fn){
+  if (busy) { toast('Уже выполняется…'); return; }
+  busy = true;
+  try { await fn(); } catch(e){ toast('Ошибка: ' + e.message); } finally { busy = false; }
+}
 function toast(m){ const el=$('toast'); el.textContent=m; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),2400); }
 async function api(path, body){
   const initData = tg && tg.initData ? { initData: tg.initData } : {};
@@ -94,7 +100,7 @@ async function api(path, body){
   return r.json();
 }
 const S = { pendingChatPhoto: '' };
-let TAB = 'dash', cats = [], prodsCache = [], ordersCache = [], chatTid = 0, editPid = null, editBannerId = null;
+let threadTimer = null, TAB = 'dash', cats = [], prodsCache = [], chatTid = 0, editPid = null, editBannerId = null;
 const TABS = [['dash','📊 Дашборд'],['orders','📦 Заказы'],['products','🍯 Товары'],['clients','👥 Клиенты'],['chat','💬 Сообщения'],['more','⋯ Ещё']];
 function renderTabs(){ $('tabs').innerHTML = TABS.map(([id,n])=>`<button class="tab ${TAB===id?'on':''}" onclick="TAB='${id}';renderTabs();render()">${n}</button>`).join(''); }
 async function render(){
@@ -131,34 +137,47 @@ async function toggleShop(open){
   toast(settings.shop_open ? 'Магазин открыт' : 'Магазин закрыт'); render();
 }
 // ---------- Заказы ----------
-async function renderOrders(q=''){
-  $('content').innerHTML = `<div class="field"><label>Поиск: №, имя, телефон, город</label><input id="ordQ" value="${q}" oninput="renderOrders(this.value)"></div><div id="ordList"></div>`;
-  const orders = await api('/admin/orders');
-  ordersCache = orders;
-  $('ordList').innerHTML = orders.map(o=>`
+let ordersCache = [], ordQuery = '';
+function ordMatches(o){ return !ordQuery || ('#'+o.id+' '+(o.client.first_name||'')+' '+(o.client.username||'')+' '+(o.phone||'')+' '+(o.city||'')).toLowerCase().includes(ordQuery); }
+function ordCard(o){ return `
   <div class="card">
     <div class="row" style="display:flex;justify-content:space-between;align-items:center">
       <b class="serif" style="font-size:16px">#${o.id}</b>
       <span class="pill ${STC(o.status)}">${STR[o.status]}</span>
     </div>
     <div class="muted" style="font-size:12px;margin-top:4px">${(o.created_at||'').slice(0,16).replace('T',' ')}</div>
-    <div style="margin-top:8px;font-size:13px">${o.items.map(i=>`• ${i.name_ru} ×${i.qty}`).join('<br>')}</div>
+    <div style="margin-top:8px;font-size:13px">${o.items.map(i=>`+${i.qty}· ${escHtml(i.name_ru)}`).join('<br>')}</div>
     <div class="muted" style="font-size:12.5px;margin-top:8px">
-      ${o.client.first_name}${o.client.username?' · @'+o.client.username:''} · <a href="https://t.me/${o.client.username||'user'}">${o.client.telegram_id}</a><br>
-      ${o.phone||''}<br>${[o.country,o.city,o.address].filter(Boolean).join(', ')}<br>
+      ${escHtml(o.client.first_name||'')}${o.client.username?' · @'+escHtml(o.client.username):''} · <a href="https://t.me/${o.client.username||'user'}">${o.client.telegram_id}</a><br>
+      ${o.phone?escHtml(o.phone)+' ':''}<button class="btn btn-ghost btn-xs" onclick="copyAddr(${o.id})">📋 копия</button><br>${escHtml([o.country,o.city,o.address].filter(Boolean).join(', '))}<br>
       ${{cash:'Наличные',card:'Перевод на карту',spb:'СБП',kaspi:'Kaspi',erip:'ЕРИП',click:'Click',payme:'Payme'}[o.payment_method]||o.payment_method} · ${o.delivery==='courier'?'курьер':'почта'}
-      ${o.comment?'<br>💬 '+o.comment:''}
+      ${o.comment?'<br>💬 '+escHtml(o.comment):''}
     </div>
     <div class="row" style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
       <span class="gold" style="font-size:16px">${o.total_local}</span>
       ${(NEXT[o.status]||[]).map(st2=>`<button class="btn btn-xs ${st2==='cancelled'||st2==='refunded'?'btn-del':'btn-gold'}" onclick="setStatus(${o.id},'${st2}')">${BTNT[st2]}</button>`).join('')}
     </div>
     ${o.delivery!=='courier'||o.status==='shipping'?`<div class="field" style="margin-top:8px"><label>Трек-номер</label><input id="trk${o.id}" value="${o.tracking||''}" onchange="setTracking(${o.id},this.value)"></div>`:''}
-  </div>`).join('') || '<div class="empty">Заказов нет</div>';
+  </div>`; }
+function copyAddr(id){ const o = ordersCache.find(x=>x.id===id); if(!o) return; const a=[o.country,o.city,o.address].filter(Boolean).join(', ')+' · '+o.phone; navigator.clipboard && navigator.clipboard.writeText(a); toast('Скопировано'); }
+function exportCsv(){
+  const rows = [['id','дата','клиент','телефон','страна','город','адрес','сумма','оплата','статус','состав'].join(';')];
+  ordersCache.forEach(o=>rows.push([o.id,(o.created_at||'').slice(0,16),o.client.first_name,o.phone,o.country,o.city,String(o.address).replace(/;/g,','),o.total_local,o.payment_method,o.status,o.items.map(i=>i.name_ru+' x'+i.qty).join(', ')].map(x=>String(x||'').replace(/;/g,',')).join(';')));
+  const blob = new Blob(['\ufeff'+rows.join('\n')], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'sahar_orders.csv'; a.click(); toast('CSV скачан');
 }
-async function setStatus(id, status){
+async function renderOrders(){
+  const orders = await api('/admin/orders');
+  ordersCache = orders;
+  const found = orders.filter(ordMatches);
+  $('content').innerHTML = `
+  <div class="field"><label>Поиск: №, имя, телефон, город</label><input id="ordQ" value="${escHtml(ordQuery)}" oninput="ordQuery=this.value.toLowerCase();$('ordList').innerHTML=ordersCache.filter(ordMatches).map(ordCard).join('')||'<div class=\'empty\'>Ничего не найдено</div>'"></div>
+  <button class="btn btn-ghost blk" style="margin-top:8px" onclick="exportCsv()">⬇️ Экспорт CSV (${orders.length})</button>
+  <div id="ordList">${found.map(ordCard).join('') || '<div class="empty">Заказов нет</div>'}</div>`;
+}
+function setStatus(id, status){ guard(async ()=>{
   await api('/admin/order', { id, status }); toast('#'+id+' → '+STR[status]); render();
-}
+}); }
 async function setTracking(id, tracking){
   await api('/admin/order', { id, tracking }); toast('Трек сохранён'); render();
 }
@@ -201,6 +220,7 @@ function openProductForm(){
   <div class="field"><label>Nomi (UZ)</label><input id="pfNameUz" value="${p?(p.name_uz||''):''}"></div>
   <div class="field"><label>Описание (RU)</label><textarea id="pfDescRu" rows="3">${p?p.desc_ru:''}</textarea></div>
   <div class="field"><label>Description (EN)</label><textarea id="pfDescEn" rows="2">${p?(p.desc_en||''):''}</textarea></div>
+  <div class="field"><label>Tavsif (UZ)</label><textarea id="pfDescUz" rows="2">${p?(p.desc_uz||''):''}</textarea></div>
   ${catSelect(p?p.cat:cats[0]&&cats[0].id)}
   <div class="frow"><div class="field"><label>Цена, USD</label><input id="pfPrice" type="number" step="0.5" value="${p?p.price_usd:''}"></div>
   <div class="field"><label>Старая цена, USD</label><input id="pfOld" type="number" step="0.5" value="${p?(p.old_price_usd||''):''}"></div></div>
@@ -214,9 +234,9 @@ function openProductForm(){
   <button class="btn btn-gold blk" onclick="saveProduct()">💾 Сохранить</button>
   <button class="btn btn-ghost blk" onclick="closeSheet()">Отмена</button>`);
 }
-async function saveProduct(){
+function saveProduct(){ guard(async ()=>{
   const product = { name_ru:$('pfNameRu').value.trim(), name_en:$('pfNameEn').value.trim(), name_uz:$('pfNameUz').value.trim(),
-    desc_ru:$('pfDescRu').value.trim(), desc_en:$('pfDescEn').value.trim(), cat:Number($('pfCat').value),
+    desc_ru:$('pfDescRu').value.trim(), desc_en:$('pfDescEn').value.trim(), desc_uz:$('pfDescUz').value.trim(), cat:Number($('pfCat').value),
     price_usd:Number($('pfPrice').value)||0, old_price_usd:Number($('pfOld').value)||0,
     weight:$('pfWeight').value.trim(), stock:Number($('pfStock').value)||0,
     badges:[...$('pfBadges').querySelectorAll('.on')].map(b=>({'Хит':'hit','Новинка':'new','Premium':'premium','Ограниченно':'limited'}[b.textContent])),
@@ -224,16 +244,15 @@ async function saveProduct(){
   if (editPid) product.id = editPid;
   if (!product.name_ru || !product.price_usd){ toast('Название и цена обязательны'); return; }
   await api('/admin/product', { product }); toast('Сохранено'); closeSheet(); render();
-}
-async function dupProduct(id){ await api('/admin/product/duplicate', { id }); toast('Копия создана (скрыта)'); render(); }
-async function toggleActive(id, hide){ const p = prodsCache.find(x=>x.id===id); p.is_active = hide ? false : true; await api('/admin/product', { product: { id, is_active: p.is_active } }); toast(hide?'Скрыт':'Показан'); render(); }
-async function delProduct(id){
-  if (!confirm('Убрать товар из витрины? Его можно восстановить из корзины.')) return;
+}); }
+function dupProduct(id){ guard(async ()=>{ await api('/admin/product/duplicate', { id }); toast('Копия создана (скрыта)'); render(); }); }
+function toggleActive(id, hide){ guard(async ()=>{ const p = prodsCache.find(x=>x.id===id); p.is_active = hide ? false : true; await api('/admin/product', { product: { id, is_active: p.is_active } }); toast(hide?'Скрыт':'Показан'); render(); }); }
+function delProduct(id){ if (!confirm('Убрать товар из витрины? Его можно восстановить из корзины.')) return; guard(async ()=>{
   await api('/admin/product/delete', { id }); toast('Товар в корзине — восстановление внизу списка'); render();
-}
-async function restoreProduct(id){
+}); }
+function restoreProduct(id){ guard(async ()=>{
   await api('/admin/product/restore', { id }); toast('Товар восстановлен'); render();
-}
+}); }
 async function onPickPhoto(ev){
   const f = ev.target.files[0]; if (!f) return;
   try {
@@ -253,7 +272,7 @@ async function renderClients(){
     <div style="flex:1"><b>${c.first_name||'Клиент'}</b> <span class="muted" style="font-size:12px">${c.username?'@'+c.username:''}</span>
       <div class="muted" style="font-size:12px">Заказов: ${c.orders} · Потрачено ~$${c.spent_usd}</div></div>
     <div style="display:flex;gap:6px"><a class="btn btn-ghost btn-xs" href="https://t.me/${c.username||'user'}">✈️</a>
-    <button class="btn btn-gold btn-xs" onclick="chatTid=${c.telegram_id};TAB='chat';renderTabs();render()">💬</button></div>
+    <button class="btn btn-gold btn-xs" onclick="chatTid=${c.telegram_id};renderThread()">💬</button></div>
   </div>`).join('') || '<div class="empty">Клиентов пока нет</div>';
 }
 // ---------- Чат ----------
@@ -274,12 +293,16 @@ async function renderThread(){
   <button class="btn btn-ghost" style="flex:none" onclick="$('photoFile').click()">🖼</button>
   <button class="btn btn-gold" onclick="sendReply()">➤</button></div>`;
   window.scrollTo(0, document.body.scrollHeight);
+  if (threadTimer) clearInterval(threadTimer);
+  threadTimer = setInterval(async ()=>{ if (TAB==='chat' && chatTid){ const m2 = await api('/admin/chat', { tid: chatTid }); $('thread').innerHTML = m2.map(m=>`<div style="max-width:85%;padding:9px 13px;border-radius:15px;align-self:${m.from_admin?'flex-end':'flex-start'};background:${m.from_admin?'var(--text)':'var(--surface)'};color:${m.from_admin?'var(--bg)':'var(--text)'}">${escHtml(m.text)}${m.photo_url?`<img src="${escHtml(m.photo_url)}" style="max-width:160px;border-radius:9px;margin-top:5px">`:''}<div style="font-size:9.5px;opacity:.6;margin-top:3px">${(m.at||'').slice(11,16)}</div></div>`).join(''); window.scrollTo(0, document.body.scrollHeight); } }, 8000);
 }
-async function sendReply(){
+function sendReply(){
   const text = $('replyIn').value.trim();
   if (!text && !S.pendingChatPhoto) return;
-  await api('/admin/chat/send', { tid: chatTid, text: text || '📷', photo_url: S.pendingChatPhoto || '' });
-  $('replyIn').value = ''; S.pendingChatPhoto = ''; renderThread();
+  guard(async ()=>{
+    await api('/admin/chat/send', { tid: chatTid, text: text || '📷', photo_url: S.pendingChatPhoto || '' });
+    $('replyIn').value = ''; S.pendingChatPhoto = ''; await renderThread();
+  });
 }
 // ---------- Ещё ----------
 async function renderMore(){
@@ -300,8 +323,10 @@ async function renderCats(){
     <button class="btn btn-del btn-xs" onclick="if(confirm('Удалить категорию?'))api('/admin/category/delete',{id:${c.id}}).then(()=>{toast('Удалена');renderCats()})">🗑</button></div>`).join('')}
   <button class="btn btn-gold blk" onclick="const n=prompt('Название новой категории (RU):');if(n){api('/admin/category',{category:{name_ru:n}}).then(()=>{toast('Добавлена');renderCats()})}">＋ Категория</button>`;
 }
+let bannersCache = [];
 async function renderBannersAdm(){
   const bs = await api('/admin/banners');
+  bannersCache = bs;
   $('content').innerHTML = `<button class="btn btn-ghost blk" onclick="TAB='more';renderTabs();render()">← Ещё</button>
   <div class="sect-t">Баннеры главной</div>
   ${bs.map(b=>`<div class="card"><img src="${b.image_url}" class="img-prev"><b style="display:block;margin-top:8px">${b.title_ru||''}</b>
@@ -311,20 +336,21 @@ async function renderBannersAdm(){
   <button class="btn btn-gold blk" onclick="editBannerId=null;openBannerForm()">＋ Баннер</button>`;
 }
 function openBannerForm(){
-  openSheet(`<div class="serif" style="font-size:19px;font-weight:700">Баннер</div>
-  <div class="field"><label>Заголовок (RU)</label><input id="bnT" value=""></div>
-  <div class="field"><label>Подпись (RU)</label><input id="bnS" value=""></div>
+  const b = editBannerId ? bannersCache.find(x=>x.id===editBannerId) : null;
+  openSheet(`<div class="serif" style="font-size:19px;font-weight:700">${b?'Изменить баннер':'Новый баннер'}</div>
+  <div class="field"><label>Заголовок (RU)</label><input id="bnT" value="${b?escHtml(b.title_ru):''}"></div>
+  <div class="field"><label>Подпись (RU)</label><input id="bnS" value="${b?escHtml(b.sub_ru):''}"></div>
   <div class="field"><label>Ссылка на фото (URL или загрузка)</label>
-  <div style="display:flex;gap:8px"><button class="btn btn-ghost btn-xs" onclick="$('photoFile').click()">🖼 Загрузить</button><input id="bnImg" style="flex:1"></div></div>
-  <img id="pfPreview" class="img-prev hidden">
+  <div style="display:flex;gap:8px"><button class="btn btn-ghost btn-xs" onclick="$('photoFile').click()">🖼 Загрузить</button><input id="bnImg" style="flex:1" value="${b?escHtml(b.image_url):''}"></div></div>
+  <img id="pfPreview" class="img-prev ${b&&b.image_url?'':'hidden'}" src="${b?escHtml(b.image_url):''}">
   <button class="btn btn-gold blk" onclick="saveBanner()">💾 Сохранить</button>
   <button class="btn btn-ghost blk" onclick="closeSheet()">Отмена</button>`);
 }
-async function saveBanner(){
+function saveBanner(){ guard(async ()=>{
   const banner = { title_ru:$('bnT').value.trim(), sub_ru:$('bnS').value.trim(), image_url:$('bnImg').value.trim() };
   if (editBannerId) banner.id = editBannerId;
   await api('/admin/banner', { banner }); toast('Баннер сохранён'); closeSheet(); renderBannersAdm();
-}
+}); }
 async function renderPromos(){
   const ps = await api('/admin/promos');
   $('content').innerHTML = `<button class="btn btn-ghost blk" onclick="TAB='more';renderTabs();render()">← Ещё</button>
@@ -341,10 +367,12 @@ function openBroadcast(){
   <button class="btn btn-gold blk" onclick="doBroadcast()">Отправить всем</button>
   <button class="btn btn-ghost blk" onclick="closeSheet()">Отмена</button>`);
 }
-async function doBroadcast(){
+function doBroadcast(){
   const text = $('bcText').value.trim(); if (!text) return;
   if (!confirm('Отправить рассылку ВСЕМ клиентам?')) return;
-  const r = await api('/admin/broadcast', { text }); closeSheet(); toast(`Отправлено: ${r.sent}${r.failed?', не доставлено: '+r.failed:''}`);
+  guard(async ()=>{
+    const r = await api('/admin/broadcast', { text }); closeSheet(); toast(`Отправлено: ${r.sent}${r.failed?', не доставлено: '+r.failed:''}`);
+  });
 }
 async function renderSettingsAdm(){
   const r = await api('/admin/settings');
@@ -361,22 +389,43 @@ async function renderSettingsAdm(){
     <div class="field"><label>Почта $</label><input id="po_${c2.code}" value="${c2.postal_usd}"></div>
     <div class="field"><label>Бесплатно от $</label><input id="fr_${c2.code}" value="${c2.free_from_usd}"></div></div></div>`).join('')}
   <button class="btn btn-gold blk" onclick="saveCountries()">💾 Сохранить страны</button>
+  <div class="sect-t">Реквизиты оплаты (по странам)</div>
+  ${(s.payments||[]).map(p=>`<div class="card">
+    <div class="row" style="display:flex;justify-content:space-between;align-items:center">
+      <b>${p.title_ru}</b>
+      <button id="pact_${p.id}" class="${p.active!==false?'on':''}" onclick="this.classList.toggle('on');this.textContent=this.classList.contains('on')?'✓ Включён':'Выключен'" style="padding:8px 12px;border-radius:10px;border:1px solid var(--hair);background:var(--surface);font:700 12px 'Manrope';cursor:pointer;color:var(--text)">${p.active!==false?'✓ Включён':'Выключен'}</button>
+    </div>
+    <div class="muted" style="font-size:11.5px;margin-top:3px">${(p.countries||[]).join(' · ')}</div>
+    <div class="field" style="margin-top:8px"><label>Инструкция / реквизиты</label><textarea id="pin_${p.id}" rows="2">${escHtml(p.instr_ru||'')}</textarea></div>
+  </div>`).join('')}
+  <button class="btn btn-gold blk" onclick="guard(savePayments)">💾 Сохранить реквизиты</button>
   <div class="sect-t">Анимации витрины</div>
   <div class="card"><div class="kb" id="animKb">${['silk','shimmer','parallax','festive','minimal'].map(a=>`<button class="${s.anim===a?'on':''}" onclick="pickAnim('${a}')">${{silk:'Silk',shimmer:'Golden Shimmer',parallax:'Parallax Luxe',festive:'Festive ✨',minimal:'Minimal'}[a]}</button>`).join('')}</div>
-  <div class="muted" style="font-size:12px;margin-top:8px">Применяется к витрине сразу после сохранения.</div></div>`;
+  <div class="muted" style="font-size:12px;margin-top:8px">Живое превью на витрине после сохранения.</div>
+  <button class="btn btn-gold blk" onclick="saveAnim()">💾 Применить анимацию</button></div>`;
 }
 let pendingAnim = null;
 async function pickAnim(a){ pendingAnim = a; [...$('animKb').querySelectorAll('button')].forEach(b=>b.classList.remove('on')); event.target.classList.add('on'); }
-async function saveRates(){
+function saveRates(){ guard(async ()=>{
   const r = await api('/admin/settings'); const s = r.settings || r;
   for (const c2 of Object.keys(s.rates)){ const v = Number($('rate_'+c2) ? $('rate_'+c2).value : s.rates[c2]); if (v>0) s.rates[c2]=v; }
   if (pendingAnim) s.anim = pendingAnim;
   await api('/admin/settings', { settings: s }); toast('Курсы сохранены');
+}); }
+async function saveAnim(){
+  if (!pendingAnim) { toast('Сначала выберите пресет'); return; }
+  await api('/admin/settings', { settings: { anim: pendingAnim } });
+  toast('Анимация «'+pendingAnim+'» применена к витрине');
 }
-async function saveCountries(){
+function saveCountries(){ guard(async ()=>{
   const r = await api('/admin/settings'); const s = r.settings || r;
   s.countries = s.countries.map(c2 => ({ ...c2, courier_usd:Number($('cr_'+c2.code).value)||0, postal_usd:Number($('po_'+c2.code).value)||0, free_from_usd:Number($('fr_'+c2.code).value)||0 }));
   await api('/admin/settings', { settings: s }); toast('Доставка обновлена');
+}); }
+async function savePayments(){
+  const r = await api('/admin/settings'); const s = r.settings || r;
+  s.payments = s.payments.map(p => ({ ...p, instr_ru: ($('pin_'+p.id) ? $('pin_'+p.id).value : p.instr_ru) || '', active: $('pact_'+p.id) ? $('pact_'+p.id).classList.contains('on') : p.active !== false }));
+  await api('/admin/settings', { settings: s }); toast('Реквизиты оплаты сохранены');
 }
 // ---------- вход ----------
 (async function(){

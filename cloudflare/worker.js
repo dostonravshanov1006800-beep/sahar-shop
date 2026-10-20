@@ -197,6 +197,16 @@ async function handle(request, env) {
       if (!user) return json({ ok: false, error: 'invalid_init' }, 403);
       return json({ ok: true, user, is_owner: await isOwner(env, user.id) });
     }
+    if (p === '/api/promo' && request.method === 'GET') {
+      const code = clamp(url.searchParams.get('code') || '', 30).toUpperCase();
+      if (!code) return json({ ok: false }, 400);
+      const promoIds = await J.get(env, 'promo_ids', []);
+      for (const pid of promoIds) {
+        const pr = await J.get(env, 'promo:' + pid);
+        if (pr && pr.active !== false && pr.code.toUpperCase() === code) return json({ ok: true, percent: pr.percent || 0 });
+      }
+      return json({ ok: false }, 404);
+    }
     if (p === '/api/catalog' && request.method === 'GET') {
       const catIds = await J.get(env, 'cat_ids', []);
       const categories = [];
@@ -233,6 +243,8 @@ async function handle(request, env) {
       if (!orderItems.length) return json({ ok: false, error: 'empty' }, 400);
       const c = (s.countries || []).find(x => x.code === country);
       if (!c) return json({ ok: false, error: 'bad_country' }, 400);
+      const pmDef = (s.payments || []).find(x => x.id === payment_method && x.active !== false);
+      if (!pmDef || !pmDef.countries.includes(country)) return json({ ok: false, error: 'bad_payment' }, 400);
       // доставка
       const dType = delivery === 'postal' ? 'postal' : 'courier';
       const dPrice = dType === 'courier' ? (c.courier_usd || 0) : (c.postal_usd || 0);
@@ -263,7 +275,8 @@ async function handle(request, env) {
         items: orderItems, total_usd, discount_usd: discount, shipping_usd: shipping, gift_pack_usd: giftPack, grand_usd,
         currency: c.currency, rate, total_local: fmtMoney(grand_usd, c.currency, s.rates, s.rounding, (s.markup || {})[c.code] || 0),
         country, country_name: c.name_ru, city, address, delivery: dType, payment_method: payment_method || 'cash',
-        promo: promoApplied, gift: gift || null, status: 'new', created_at: new Date().toISOString(), history: [{ status: 'new', at: new Date().toISOString() }],
+        promo: promoApplied, gift: gift || null, status: payment_method === 'cash' ? 'new' : 'awaiting_payment', created_at: new Date().toISOString(),
+        history: [{ status: payment_method === 'cash' ? 'new' : 'awaiting_payment', at: new Date().toISOString() }],
       };
       await J.put(env, 'order:' + id, order);
       const ids = await J.get(env, 'order_ids', []); ids.push(id); await J.put(env, 'order_ids', ids.slice(-500));
@@ -277,7 +290,7 @@ async function handle(request, env) {
         const prod = await J.get(env, 'prod:' + it.id);
         if (prod) { prod.stock = Math.max(0, (prod.stock || 0) - it.qty); await J.put(env, 'prod:' + it.id, prod); }
       }
-      try { await notifyOwners(env, await orderText(env, order), await orderKb(id, 'new')); } catch (e) {}
+      try { await notifyOwners(env, await orderText(env, order), await orderKb(id, order.status)); } catch (e) {}
       // подтверждение клиенту + реквизиты оплаты
       try {
         const pm = (s.payments || []).find(x => x.id === order.payment_method) || null;
@@ -616,6 +629,18 @@ async function handleUpdate(env, u) {
         text: 'Добро пожаловать в <b>SAHAR</b> ✦\nАвторские сладости ручной работы: трюфели, шоколад, восточные десерты и подарочные наборы.\n\nДоставка по странам СНГ. Откройте магазин и закажите за пару касаний.',
         reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=6' } }]] } });
       await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=6' } } });
+      return;
+    }
+    if (m.contact) {
+      const clIds2 = await J.get(env, 'client_ids', []);
+      if (!clIds2.includes(tid)) { clIds2.push(tid); await J.put(env, 'client_ids', clIds2); }
+      const phoneTxt = '📞 Телефон из Telegram: ' + (m.contact.phone_number || '—');
+      const msgs = await J.get(env, 'msgs:' + tid, []);
+      msgs.push({ from_admin: false, text: phoneTxt, at: new Date().toISOString(), read: false });
+      await J.put(env, 'msgs:' + tid, msgs.slice(-200));
+      await notifyOwners(env, '📞 <b>Клиент поделился номером</b>
+👤 ' + esc(m.from.first_name || '') + ' · <a href="tg://user?id=' + tid + '">' + tid + '</a>\n📱 <code>' + esc(m.contact.phone_number || '') + '</code>',
+        { inline_keyboard: [[{ text: '💬 Ответить', callback_data: 'rep:' + tid }]] });
       return;
     }
     // сообщение поддержки

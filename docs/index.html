@@ -198,9 +198,9 @@ nav.kb{transform:translateY(110%)}
     </div>
   </header>
   <div id="main">
-    <div id="banners"></div>
+    <div id="banners"><div class="banner" style="width:100%"><div class="ph-skel"></div></div></div>
     <div id="chips"></div>
-    <div id="sections"></div>
+    <div id="sections"><div class="grid"><div class="card"><div class="ph"><div class="ph-skel"></div></div><div class="info"><div class="nm" style="background:var(--sand);border-radius:6px;height:14px;width:80%"></div><div class="price-row"><span style="background:var(--sand);border-radius:6px;height:18px;width:50%;display:inline-block"></span></div></div></div><div class="card"><div class="ph"><div class="ph-skel"></div></div><div class="info"><div class="nm" style="background:var(--sand);border-radius:6px;height:14px;width:80%"></div><div class="price-row"><span style="background:var(--sand);border-radius:6px;height:18px;width:50%;display:inline-block"></span></div></div></div><div class="card"><div class="ph"><div class="ph-skel"></div></div><div class="info"><div class="nm" style="background:var(--sand);border-radius:6px;height:14px;width:80%"></div><div class="price-row"><span style="background:var(--sand);border-radius:6px;height:18px;width:50%;display:inline-block"></span></div></div></div><div class="card"><div class="ph"><div class="ph-skel"></div></div><div class="info"><div class="nm" style="background:var(--sand);border-radius:6px;height:14px;width:80%"></div><div class="price-row"><span style="background:var(--sand);border-radius:6px;height:18px;width:50%;display:inline-block"></span></div></div></div><div class="card"><div class="ph"><div class="ph-skel"></div></div><div class="info"><div class="nm" style="background:var(--sand);border-radius:6px;height:14px;width:80%"></div><div class="price-row"><span style="background:var(--sand);border-radius:6px;height:18px;width:50%;display:inline-block"></span></div></div></div><div class="card"><div class="ph"><div class="ph-skel"></div></div><div class="info"><div class="nm" style="background:var(--sand);border-radius:6px;height:14px;width:80%"></div><div class="price-row"><span style="background:var(--sand);border-radius:6px;height:18px;width:50%;display:inline-block"></span></div></div></div></div></div>
   </div>
 </div>
 
@@ -225,7 +225,7 @@ nav.kb{transform:translateY(110%)}
 const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
 if (tg) { tg.ready(); tg.expand(); }
 const API = 'https://sahar-shop.dostonravshanov1006800.workers.dev';
-const PH = 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Chocolate_truffle.jpg/640px-Chocolate_truffle.jpg';
+const PH = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="250"><rect width="200" height="250" fill="#F1EBDD"/><circle cx="100" cy="115" r="52" fill="none" stroke="#C9A24B" stroke-width="3"/><text x="100" y="135" font-family="Georgia" font-size="64" fill="#A67C2E" text-anchor="middle">S</text></svg>');
 const $ = id => document.getElementById(id);
 const haptic = () => { if (S.settings.haptic !== false && tg && tg.HapticFeedback) try { tg.HapticFeedback.impactOccurred('light'); } catch(e){} };
 let DEMO = false;
@@ -250,7 +250,7 @@ function money(usd){
   const step = S.settings.rounding[cur] || 1;
   v = Math.round(v / step) * step;
   const sym = {USD:'$',RUB:'₽',KZT:'₸',UZS:'сўм',BYN:'Br',KGS:'с',AMD:'֏',GEL:'₾',AZN:'₼',TJS:'SM',MDL:'L'}[cur] || cur;
-  return v.toLocaleString('ru-RU').replace(/\u00A0/g,' ') + ' ' + sym;
+  return v.toLocaleString('ru-RU').replace(/\u00A0/g,'\u2009') + ' ' + sym;
 }
 function usd(v){ return '$' + (Math.round(v*100)/100).toLocaleString('en-US'); }
 async function api(path, body){
@@ -310,6 +310,8 @@ function renderNav(){
   $('navIn').innerHTML = TABS.map(([v,ic]) => `<button class="tab ${S.view===v?'on':''}" onclick="nav('${v}')"><span class="tic">${ic}</span>${t(v==='shop'?'shop':v==='fav'?'fav':v==='chat'?'chat':'profile')}</button>`).join('');
 }
 function nav(v){ haptic(); S.view=v; renderNav();
+  if (S.chatTimer){ clearInterval(S.chatTimer); S.chatTimer=null; }
+  if (v!=='chat' && v!=='profile'){ closeOvl(true); }
   if (v==='shop'){ renderSections(); }
   if (v==='fav'){ renderSections(); }
   if (v==='chat'){ openChatView(); }
@@ -333,6 +335,8 @@ function renderChips(){
     S.cats.map(c=>`<button class="chip ${S.cat===c.id?'on':''}" onclick="pickCat(${c.id})">${S.lang==='en'?c.name_en:(S.lang==='uz'?c.name_uz:c.name_ru)}</button>`).join('');
 }
 function pickCat(id){ haptic(); S.cat=id; renderChips(); renderSections(); }
+const SORTS = [['pop','Популярные'],['asc','Цена ↑'],['desc','Цена ↓']];
+function pickSort(v){ haptic(); S.sort=v; renderSections(); }
 function onSearch(){ S.q = $('q').value.trim().toLowerCase(); renderSections(); }
 function pname(p){ return S.lang==='en' ? (p.name_en||p.name_ru) : S.lang==='uz' ? (p.name_uz||p.name_ru) : p.name_ru; }
 function pdesc(p){ return S.lang==='en' ? (p.desc_en||p.desc_ru) : S.lang==='uz' ? (p.desc_uz||p.desc_ru) : p.desc_ru; }
@@ -364,10 +368,15 @@ function renderSections(){
   const hits = S.prods.filter(p=>(p.badges||[]).includes('hit'));
   const news = S.prods.filter(p=>(p.badges||[]).includes('new'));
   const sets = S.prods.filter(p=>String(p.cat)===String(S.cats.find(c=>(c.name_ru||'').includes('набор')||(c.name_en||'').includes('set'))?.id));
-  let html = '';
+  let list = filtered();
+  if (S.sort==='asc') list = list.slice().sort((a,b)=>a.price_usd-b.price_usd);
+  if (S.sort==='desc') list = list.slice().sort((a,b)=>b.price_usd-a.price_usd);
+  const sortRow = `<div style="display:flex;gap:7px;margin:12px -2px 0">${SORTS.map(([v,n])=>`<button class="chip ${(S.sort||'pop')===v?'on':''}" style="font-size:11.5px;padding:7px 12px" onclick="pickSort('${v}')">${n}</button>`).join('')}</div>`;
+  let html = sortRow;
   if (!S.q && S.cat===0){
     if (hits.length) html += `<div class="sect"><div class="sect-h"><div class="sect-t">${t('hits')}</div><div class="sect-s">SAHAR</div></div><div class="grid">${hits.map(cardHtml).join('')}</div></div>`;
-    const viewedIds = JSON.parse(localStorage.getItem('sahar_viewed') || '[]');
+    if (!S.q && S.cat===0) html += `<div class="sect"><div class="card row" style="cursor:pointer" onclick="openBuilder()"><div style="flex:1"><div class="sect-t" style="font-size:17px">🎁 Собери свой набор</div><div class="muted" style="font-size:12.5px;font-weight:600">Выберите сладости, открытку и упаковку — остальное сделаем мы</div></div><span style="font-size:22px">→</span></div></div>`;
+  const viewedIds = JSON.parse(localStorage.getItem('sahar_viewed') || '[]');
     const viewed = viewedIds.map(id=>S.prods.find(x=>x.id===id)).filter(Boolean).slice(0,4);
     if (viewed.length >= 2) html += `<div class="sect"><div class="sect-t">Недавно смотрели</div><div class="grid">${viewed.map(cardHtml).join('')}</div></div>`;
     if (news.length) html += `<div class="sect"><div class="sect-t">${t('news')}</div><div class="grid">${news.map(cardHtml).join('')}</div></div>`;
@@ -375,21 +384,63 @@ function renderSections(){
   }
   const catObj = S.cats.find(c=>c.id===S.cat);
   const catName = S.cat===0 ? t('all') : (catObj ? (S.lang==='en'?catObj.name_en:(S.lang==='uz'?catObj.name_uz:catObj.name_ru)) : '');
-  html += `<div class="sect"><div class="sect-t">${S.q?'"'+$('q').value+'"':catName}</div><div class="grid">${filtered().map(cardHtml).join('') || `<div class="empty" style="grid-column:1/3"><div class="e-title">${t('cartEmpty')}</div></div>`}</div></div>`;
+  html += `<div class="sect"><div class="sect-t">${S.q?'"'+$('q').value+'"':catName}</div><div class="grid">${list.map(cardHtml).join('') || `<div class="empty" style="grid-column:1/3"><div class="e-title">${S.q?'Ничего не нашлось — попробуйте другой запрос':t('cartEmpty')}</div></div>`}</div></div>`;
   $('sections').innerHTML = html;
 }
 
 // ---------- товар ----------
+function copyText(x){ navigator.clipboard && navigator.clipboard.writeText(x).then(()=>toast('Скопировано')).catch(()=>toast('Не удалось')); }
 function shareProduct(p){
   const u = 'https://t.me/share/url?url=' + encodeURIComponent('https://dostonravshanov1006800-beep.github.io/sahar-shop/') + '&text=' + encodeURIComponent('SAHAR — ' + pname(p) + ' · ' + money(p.price_usd));
   if (tg && tg.openTelegramLink) tg.openTelegramLink(u); else window.open(u);
+}
+function openBuilder(){
+  haptic();
+  S.build = S.build || {};
+  $('psBody').innerHTML = `
+    <h2 class="sh-title">🎁 Собери свой набор</h2>
+    <div class="muted" style="font-size:12.5px;font-weight:700">Отметьте сладости, добавьте открытку и упаковку</div>
+    <div style="margin-top:12px">${S.prods.map(p=>`
+      <div class="cline">
+        <img src="${p.image_url||PH}" onclick="closeSheet('ps');openProduct(${p.id})">
+        <div style="flex:1;min-width:0"><div style="font-weight:800;font-size:13px">${pname(p)}</div>
+        <div class="price-gold" style="font-size:13px">${money(p.price_usd)}</div></div>
+        <div class="qty"><button onclick="bQty(${p.id},-1)">−</button><span id="bq${p.id}">${S.build[p.id]||0}</span><button onclick="bQty(${p.id},1)">+</button></div>
+      </div>`).join('')}</div>
+    <div class="field"><label>${t('giftCard')}</label><textarea id="bCard" rows="2" placeholder="С днём рождения!"></textarea></div>
+    <label class="opt on" onclick="S.giftPack=true;this.classList.add('on')"><span>🎁 ${t('giftPack')}</span><span class="radio"></span></label>
+    <div style="display:flex;justify-content:space-between;font-weight:800;margin-top:14px"><span>${t('total')}</span><span class="price-gold" id="bTotal" style="font-size:18px">${money(3)}</span></div>
+    <button class="btn btn-gold" style="margin-top:12px" onclick="buildToCart()">${t('add')}</button>`;
+  openSheet('ps');
+}
+function bQty(pid, n){
+  S.build[pid] = Math.max(0, (S.build[pid]||0) + n);
+  $('bq'+pid).textContent = S.build[pid];
+  $('bTotal').textContent = money(buildSum());
+  haptic();
+}
+function buildSum(){
+  let s2 = (S.giftPack?3:0);
+  for (const [pid, q] of Object.entries(S.build)) { const p = S.prods.find(x=>x.id==pid); if (p) s2 += p.price_usd * q; }
+  return s2;
+}
+function buildToCart(){
+  const items = Object.entries(S.build).filter(([,q])=>q>0);
+  if (!items.length){ toast('Отметьте хотя бы одну сладость'); return; }
+  items.forEach(([pid,q])=>{ S.cart[pid]=(S.cart[pid]||0)+q; });
+  const card = $('bCard') ? $('bCard').value.trim() : '';
+  S.giftCardText = card;
+  S.giftPack = true;
+  save(); updateCartBadge(); closeSheet('ps'); toast('Набор в корзине'); openCart();
 }
 function trackViewed(pid){
   const v = (JSON.parse(localStorage.getItem('sahar_viewed') || '[]')).filter(x=>x!==pid);
   v.unshift(pid); localStorage.setItem('sahar_viewed', JSON.stringify(v.slice(0, 8)));
 }
+let psQ = 1;
 function openProduct(pid){
   haptic();
+  psQ = 1;
   trackViewed(pid);
   const p = S.prods.find(x=>x.id===pid); if (!p) return;
   const d = p.old_price_usd && p.old_price_usd > p.price_usd ? Math.round((1-p.price_usd/p.old_price_usd)*100) : 0;
@@ -407,6 +458,7 @@ function openProduct(pid){
       <button class="btn btn-gold" style="flex:1" onclick="addToCart(${p.id}, Number($('psQty').textContent))">${t('add')}</button>
       <button class="icon-btn" style="width:46px;height:46px;flex:none" onclick="shareProduct(S.prods.find(x=>x.id===${p.id}))">↗</button>
     </div>
+    ${(S.prods.filter(x=>x.id!==p.id && x.cat===p.cat).slice(0,2).length)?`<div style="margin-top:18px"><div class="sect-t" style="font-size:16px">С этим берут</div><div class="grid" style="margin-top:8px">${S.prods.filter(x=>x.id!==p.id && x.cat===p.cat).slice(0,2).map(cardHtml).join('')}</div></div>`:''}
     <div style="margin-top:18px">
       <details style="border-bottom:1px solid var(--hairline);padding:11px 2px"><summary style="font-weight:800;font-size:14px;cursor:pointer">Состав и аллергены</summary><div class="muted" style="font-size:13px;margin-top:8px;font-weight:600">${escHtml(pdesc(p))}</div></details>
       <details style="border-bottom:1px solid var(--hairline);padding:11px 2px"><summary style="font-weight:800;font-size:14px;cursor:pointer">Хранение</summary><div class="muted" style="font-size:13px;margin-top:8px;font-weight:600">16–18 °C, в сухом месте, вдали от солнца. Свежесть до 14 дней, наборы — до 30 дней.</div></details>
@@ -414,7 +466,6 @@ function openProduct(pid){
     </div>`;
   openSheet('ps');
 }
-let psQ = 1;
 function psQty(n){ psQ = Math.max(1, psQ + n); $('psQty').textContent = psQ; haptic(); }
 function openSheet(id){ $(id+'Bg').classList.remove('hidden'); requestAnimationFrame(()=>$(id).classList.add('open')); }
 function closeSheet(id){ $(id).classList.remove('open'); setTimeout(()=>$((id)+'Bg').classList.add('hidden'), 280); }
@@ -434,6 +485,17 @@ function openCart(){
   if (!Object.keys(S.cart).length){ toast(t('cartEmpty')); return; }
   renderCart(); openSheet('cart');
 }
+async function applyPromo(){
+  const code = $('promoIn').value.trim().toUpperCase(); S.promo = code; save();
+  if (!code){ S.promoPct=0; renderCart(); return; }
+  try {
+    const r = await fetch(API + '/api/promo?code=' + encodeURIComponent(code)); const j = await r.json();
+    if (j.ok){ S.promoPct = j.percent||0; toast('−' + j.percent + '% применён'); }
+    else { S.promoPct = 0; toast('Промокод не найден'); }
+  } catch(e){ toast(t('net')); }
+  renderCart();
+}
+function cartDiscount(){ return Math.round(cartTotal() * (S.promoPct||0)) / 100; }
 function renderCart(){
   const items = cartItems(); const sub = cartTotal();
   const c = S.country || {}; const free = c.free_from_usd || Infinity;
@@ -449,11 +511,12 @@ function renderCart(){
     </div>`).join('')}
     <div class="dprog">${sub<free? t('freeFrom2').replace('{n}', usd(free-sub)) : '✨ ' + t('free')}
       <div class="dbar"><div style="width:${Math.min(100, sub/free*100)}%"></div></div></div>
-    <div class="field"><label>${t('promo')}</label><div style="display:flex;gap:8px"><input id="promoIn" style="flex:1"><button class="btn btn-ghost btn-sm" onclick="S.promo=$('promoIn').value;toast('✓')">${t('apply')}</button></div></div>
+    <div class="field"><label>${t('promo')}</label><div style="display:flex;gap:8px"><input id="promoIn" style="flex:1;text-transform:uppercase" value="${S.promo||''}"><button class="btn btn-ghost btn-sm" onclick="applyPromo()">${t('apply')}</button></div><div id="promoMsg" style="font-size:11.5px;font-weight:700;color:var(--gold2);margin-top:5px">${S.promoPct?('−'+S.promoPct+'% применён'):''}</div></div>
     <div class="field"><label>${t('giftCard')}</label><textarea id="giftCard" rows="2" placeholder="…"></textarea></div>
     <label class="opt" onclick="this.classList.toggle('on');S.giftPack=this.classList.contains('on')"><span>${t('giftPack')}</span><span class="radio"></span></label>
     <label class="opt" onclick="this.classList.toggle('on');S.anon=this.classList.contains('on')"><span>${t('anon')}</span><span class="radio"></span></label>
-    <div style="display:flex;justify-content:space-between;font-weight:800;margin-top:16px"><span>${t('total')}</span><span class="price-gold" style="font-size:19px">${money(sub + (S.giftPack?3:0))}</span></div>
+    ${S.promoPct?`<div style="display:flex;justify-content:space-between;margin-top:12px;color:var(--gold2);font-weight:800;font-size:13px"><span>${t('promo')} (−${S.promoPct}%)</span><span>−${money(cartDiscount())}</span></div>`:''}
+    <div style="display:flex;justify-content:space-between;font-weight:800;margin-top:16px"><span>${t('total')}</span><span class="price-gold" style="font-size:19px">${money(sub + (S.giftPack?3:0) - cartDiscount())}</span></div>
     <button class="btn btn-gold" style="margin-top:14px" onclick="startCheckout()">${t('checkout')}</button>`;
 }
 
@@ -490,7 +553,7 @@ function renderCheckoutStep(){
     if (pm) ck.payment = pm.id;
     html += `<h3 class="ovl-title" style="font-size:20px">${t('step3')}</h3>
       ${pays.map(p=>`<div class="opt ${ck.payment===p.id?'on':''}" onclick="ck.payment='${p.id}';renderCheckoutStep()"><span style="font-weight:800">${p.title_ru}</span><span class="radio"></span></div>`).join('')}
-      ${pm?`<div class="dprog" style="margin-top:14px">${pm.instr_ru||''}</div>`:''}
+      ${pm&&pm.instr_ru?`<div class="dprog" style="margin-top:14px;display:flex;align-items:center;gap:8px">${pm.instr_ru}<button class="btn btn-ghost btn-xs" style="flex:none;margin-left:auto" onclick="copyText(${JSON.stringify(pm.instr_ru)})">Скопировать</button></div>`:''}
       <label class="opt" onclick="event.preventDefault();this.classList.toggle('on');S.checkout.agree=this.classList.contains('on');updateMainBtn()"><span style="font-size:13px">${t('agree')} <span style="color:var(--gold2);text-decoration:underline" onclick="event.stopPropagation();openLegal('offer')">оферта</span></span><span class="radio"></span></label>
       <div style="display:flex;justify-content:space-between;font-weight:800;margin-top:18px;padding-top:14px;border-top:1px solid var(--hairline)"><span>${t('total')}</span><span class="price-gold" style="font-size:19px">${money(checkoutTotal())}</span></div>`;
     if (tg && tg.MainButton){ tg.MainButton.setText(t('confirm')); updateMainBtn(); }
@@ -498,18 +561,24 @@ function renderCheckoutStep(){
   return html;
 }
 function checkoutTotal(){
-  const c=S.country||{}; const sub=cartTotal()+(S.giftPack?3:0);
+  const c=S.country||{}; const sub=cartTotal()+(S.giftPack?3:0)-cartDiscount();
   const ship = sub >= (c.free_from_usd||Infinity) ? 0 : (S.checkout.delivery==='postal'?c.postal_usd:c.courier_usd)||0;
   return sub + ship;
 }
 function updateMainBtn(){ if (tg && tg.MainButton){ if (S.checkout && S.checkout.step===3 && S.checkout.agree) { tg.MainButton.show(); } else tg.MainButton.hide(); } }
-function sharePhone(){ if (tg) tg.requestContact((ok, d)=>{ if (ok && d && d.contact && d.contact.phone_number){ S.checkout.phone = d.contact.phone_number; renderOvl(); } }); }
+function sharePhone(){
+  if (!tg || !tg.requestContact) return;
+  tg.requestContact((sent) => {
+    if (sent){ toast('Номер отправлен владельцу — укажите его и в поле для надёжности'); }
+    else toast('Не удалось получить номер — введите вручную');
+  });
+}
 function ckStep(n){
   const ck=S.checkout;
-  if (n===2){ ck.name=$('ckName')?$('ckName').value:ck.name; ck.phone=$('ckPhone')?$('ckPhone').value:ck.phone; ck.comment=$('ckComment')?$('ckComment').value:ck.comment;
-    if (!ck.name.trim() || !ck.phone.trim()) { toast(t('name')+' / '+t('phone')); return; } }
-  if (n===3){ ck.city=$('ckCity')?$('ckCity').value:ck.city; ck.address=$('ckAddr')?$('ckAddr').value:ck.address;
-    if (!ck.city.trim() || !ck.address.trim()) { toast(t('city')+' / '+t('address')); return; } }
+  const grab=(id,k)=>{ if($(id)) ck[k]=$(id).value; };
+  grab('ckName','name'); grab('ckPhone','phone'); grab('ckComment','comment'); grab('ckCity','city'); grab('ckAddr','address');
+  if (n>=2 && (!ck.name.trim() || !ck.phone.trim())) { toast(t('name')+' / '+t('phone')); return; }
+  if (n>=3 && (!ck.city.trim() || !ck.address.trim())) { toast(t('city')+' / '+t('address')); return; }
   ck.step=n; renderOvl(); window.scrollTo(0,0);
 }
 function mainConfirm(){ if (S.checkout && S.checkout.step===3 && S.checkout.agree) submitOrder(); }
@@ -521,18 +590,22 @@ async function submitOrder(){
   if (tg && tg.MainButton) { tg.MainButton.showProgress(true); }
   try {
     const items = cartItems().map(x=>({ id:x.p.id, qty:x.qty }));
-    const r = await api('/order', { items, name:ck.name, phone:ck.phone, comment:ck.comment, country:S.country.code, city:ck.city, address:ck.address, delivery:ck.delivery, payment_method:ck.payment, promo:S.promo||'', gift:{ premium_pack: !!S.giftPack, card: ($('giftCard')?$('giftCard').value:''), anonymous: !!S.anon }, idem_key: ck.idem });
+    const cardNote = S.giftCardText ? ('🎁 Открытка: "' + S.giftCardText + '"') : '';
+    const r = await api('/order', { items, name:ck.name, phone:ck.phone, comment: [ck.comment, cardNote].filter(Boolean).join('\n'), country:S.country.code, city:ck.city, address:ck.address, delivery:ck.delivery, payment_method:ck.payment, promo:S.promo||'', gift:{ premium_pack: !!S.giftPack, card: ($('giftCard')?$('giftCard').value:''), anonymous: !!S.anon }, idem_key: ck.idem });
     if (tg && tg.MainButton) tg.MainButton.hideProgress();
     if (r.ok){
-      S.cart = {}; S.promo=''; S.giftPack=false; S.anon=false; save(); updateCartBadge();
+      if (tg && tg.MainButton) tg.MainButton.hide();
+      S.cart = {}; S.promo=''; S.promoPct=0; S.giftPack=false; S.anon=false; save(); updateCartBadge();
       ck.idem = crypto.randomUUID();
       $('ovlBody').innerHTML = `<div class="success-wrap">
         <div class="check-gold"><svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
         <div class="onum">№${r.order_id}</div>
         <div class="serif" style="font-size:19px;margin-top:6px">${t('successT')}</div>
         <p style="color:var(--muted);font-weight:600;margin-top:6px">${t('successS')}</p>
+        ${S.checkout && S.checkout.payment!=='cash' ? `<div class="dprog" style="text-align:left">💳 Оплата переводом — пришлите, пожалуйста, фото чека в чат, мы подтвердим и соберём заказ.</div>`:''}
         <button class="btn btn-gold" style="margin-top:22px" onclick="openOrders()">${t('myOrders')}</button>
         <button class="btn btn-ghost" style="margin-top:10px" onclick="closeOvl();S.view='chat';renderNav();openChatView()">${t('writeOwner')}</button>
+      <button class="btn btn-ghost" style="margin-top:10px" onclick="closeOvl(true);S.view='shop';renderNav();renderSections()">← ${t('shop')}</button>
       </div>`;
       $('ovlBackT').textContent = t('shop');
       window.scrollTo(0,0);
@@ -543,11 +616,11 @@ async function submitOrder(){
 // ---------- overlay-экран ----------
 function openOvl(title, html){ $('ovlBackT').textContent = t('shop'); $('ovlBody').innerHTML = `<h2 class="ovl-title" style="display:none">${title}</h2>` + html; $('ovlGeneric').classList.add('open'); }
 function renderOvl(){ $('ovlBody').innerHTML = renderCheckoutStep(); updateMainBtn(); }
-function closeOvl(){
+function closeOvl(keepView){
   $('ovlGeneric').classList.remove('open');
   if (tg && tg.MainButton) tg.MainButton.hide();
   if (S.chatTimer){ clearInterval(S.chatTimer); S.chatTimer=null; }
-  if (S.view==='chat'||S.view==='profile'){ S.view='shop'; renderNav(); renderSections(); }
+  if (!keepView && (S.view==='chat'||S.view==='profile')){ S.view='shop'; renderNav(); renderSections(); }
 }
 
 // ---------- мои заказы ----------
@@ -615,6 +688,7 @@ function openChatView(){
       <input id="chatIn" placeholder="…" onkeydown="if(event.key==='Enter')sendChat()">
       <button onclick="sendChat()">➤</button>
     </div>`);
+  if (S.chatTimer) clearInterval(S.chatTimer);
   loadChat();
   S.chatTimer = setInterval(loadChat, 8000);
 }
