@@ -11,29 +11,44 @@ async function api(path, initData, extra) {
     body: JSON.stringify({ initData, ...(extra||{}) }) });
   return { status: r.status, j: await r.json().catch(()=>null) };
 }
+async function get(path) {
+  const r = await fetch(API + path);
+  return { status: r.status, j: await r.json().catch(()=>null) };
+}
 (async () => {
   try {
-    // 1) каталог публичный
-    const c = await fetch(API + '/api/catalog').then(r=>r.json());
-    out('1) /api/catalog: товаров=' + c.products.length + ' категорий=' + c.categories.length);
-    // 2) verify владельца
+    const c = (await get('/api/catalog')).j;
+    out('1) каталог: товаров=' + c.products.length + ' категорий=' + c.categories.length);
     const vo = await api('/api/verify', INIT_OWNER);
-    out('2) verify владелец: status=' + vo.status + ' is_admin=' + vo.j.is_admin + ' id=' + vo.j.user.telegram_id);
-    // 3) verify клиента
+    out('2) verify владелец: is_admin=' + vo.j.is_admin + ' id=' + vo.j.user.telegram_id);
     const vc = await api('/api/verify', INIT_CLIENT);
-    out('3) verify клиент: status=' + vc.status + ' is_admin=' + vc.j.is_admin + ' id=' + vc.j.user.telegram_id);
-    // 4) клиент делает заказ
+    out('3) verify клиент: is_admin=' + vc.j.is_admin + ' id=' + vc.j.user.telegram_id);
+    const bad = await api('/api/verify', 'user=x&hash=fake');
+    out('4) подделка отклонена: status=' + bad.status + ' (ожидаем 401)');
     const prod = c.products[0];
     const ord = await api('/api/order', INIT_CLIENT, { items: [{ id: prod.id, qty: 2 }], address: 'Ташкент, тест 1', phone: '+998901234567', comment: 'E2E тест', payment_method: 'cash' });
-    out('4) заказ: status=' + ord.status + ' ответ=' + JSON.stringify(ord.j));
-    // 5) владелец видит заказы в админке
-    const orders = await api('/api/orders', INIT_OWNER);
-    const list = orders.j.orders || orders.j;
-    out('5) админ /api/orders: status=' + orders.status + ' всего=' + (Array.isArray(list) ? list.length : JSON.stringify(orders.j).slice(0,120)));
-    if (Array.isArray(list) && list[0]) out('   последний: ' + JSON.stringify(list[0]).slice(0, 200));
-    // 6) клиент пишет в поддержку
-    const sup = await api('/api/support', INIT_CLIENT, { text: 'Привет, это тест поддержки!' });
-    out('6) поддержка: status=' + sup.status + ' ответ=' + JSON.stringify(sup.j).slice(0,100));
+    out('5) заказ клиента: status=' + ord.status + ' ответ=' + JSON.stringify(ord.j));
+    const my = await get('/api/my/orders?initData=' + encodeURIComponent(INIT_CLIENT));
+    out('6) мои заказы: status=' + my.status + ' всего=' + (Array.isArray(my.j) ? my.j.length : JSON.stringify(my.j).slice(0,80)));
+    const sup = await api('/api/support', INIT_CLIENT, { text: 'Привет! Это тест поддержки ✅' });
+    out('7) поддержка: status=' + sup.status);
+    const thread = await get('/api/support?initData=' + encodeURIComponent(INIT_CLIENT));
+    out('8) тред поддержки: сообщений=' + (thread.j.messages ? thread.j.messages.length : JSON.stringify(thread.j).slice(0,80)));
+    const ao = await get('/api/admin/orders?initData=' + encodeURIComponent(INIT_OWNER));
+    const olist = ao.j;
+    out('9) админ заказы: status=' + ao.status + ' всего=' + (Array.isArray(olist) ? olist.length : 'ERR'));
+    let last = Array.isArray(olist) && olist[0];
+    if (last) {
+      out('   последний: #' + last.id + ' сумма=' + last.total + ' клиент=' + last.client.telegram_id + ' статус=' + last.status);
+      const st = await api('/api/admin/order', INIT_OWNER, { order_id: last.id, status: 'accepted' });
+      out('10) смена статуса на принят: status=' + st.status + ' ' + JSON.stringify(st.j));
+      const ao2 = await get('/api/admin/orders?initData=' + encodeURIComponent(INIT_OWNER));
+      out('11) статус в базе теперь: ' + (ao2.j[0] ? ao2.j[0].status : '?'));
+    }
+    const forbidden = await get('/api/admin/orders?initData=' + encodeURIComponent(INIT_CLIENT));
+    out('12) клиент НЕ видит админ-заказы: status=' + forbidden.status + ' (ожидаем 403)');
+    const allp = await get('/api/products?all=1&initData=' + encodeURIComponent(INIT_OWNER));
+    out('13) админ товары (все): ' + (Array.isArray(allp.j) ? allp.j.length : allp.status));
     out('=== E2E ЗАВЕРШЁН ===');
   } catch (e) { out('ОШИБКА: ' + e); }
 })();
