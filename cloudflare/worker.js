@@ -150,11 +150,11 @@ async function tgSend(env, method, params) {
   return r;
 }
 const CE_BRAND = () => tgE(CE.brand, '❤️');
-const CE_STAT = s => ({ new: tgE(CE.stNew, '🆕'), awaiting_payment: '💳', paid: tgE(CE.money, '💰'), confirmed: '✅', packing: '📦', shipping: tgE(CE.stShip, '🧭'), delivered: tgE(CE.stDone, '✅'), cancelled: tgE(CE.stCancel, '❌'), refunded: '↩️' }[s] || '');
+const CE_STAT = s => ({ new: tgE(CE.stNew, '🆕'), awaiting_payment: '💳', paid: tgE(CE.money, '💰'), confirmed: '✅', packing: '📦', shipping: tgE(CE.stShip, '🧭'), delivered: tgE(CE.stDone, '✅'), done: tgE(CE.stDone, '✅'), cancelled: tgE(CE.stCancel, '❌'), refunded: '↩️' }[s] || '');
 
 // ---------- Статусы заказов ----------
 const STATUSES = ['new', 'awaiting_payment', 'paid', 'confirmed', 'packing', 'shipping', 'delivered', 'cancelled', 'refunded'];
-const STATUS_RU = { new: 'Новый', awaiting_payment: 'Ожидает оплату', paid: 'Оплачен', confirmed: 'Подтверждён', packing: 'Собирается', shipping: 'В доставке', delivered: 'Доставлен', cancelled: 'Отменён', refunded: 'Возврат' };
+const STATUS_RU = { new: 'Новый', awaiting_payment: 'Ожидает оплату', paid: 'Оплачен', confirmed: 'Подтверждён', packing: 'Собирается', shipping: 'В доставке', delivered: 'Доставлен', cancelled: 'Отменён', refunded: 'Возврат', done: 'Доставлен' };
 const PAY_TITLE = pm => ({ cash: 'Наличные', card: 'Перевод на карту', spb: 'СБП', kaspi: 'Kaspi', erip: 'ЕРИП', click: 'Click', payme: 'Payme' }[pm] || pm);
 
 async function orderKb(id, status) {
