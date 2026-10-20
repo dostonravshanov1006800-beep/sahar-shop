@@ -2,621 +2,657 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>SAHAR — премиальные сладости</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>SAHAR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="https://cdn.tailwindcss.com"></script>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
-  :root{ --gold:#b08d3f; --gold-soft:#c9a24b; --ink:#231a10; --bg:#faf8f3; }
-  body{ font-family:'Manrope',system-ui,sans-serif; background:var(--bg); color:var(--ink); margin:0; overscroll-behavior:none; }
-  .display{ font-family:'Playfair Display',serif; }
-  .gold{ color:var(--gold); }
-  .btn-gold{ background:linear-gradient(135deg,#c9a24b,#a67c2e); color:#fff; font-weight:800; box-shadow:0 4px 14px rgba(176,141,63,.35); }
-  .btn-gold:active{ transform:scale(.97); }
-  .card{ background:#fff; border:1px solid #f0e9dd; border-radius:18px; }
-  .chip{ border:1px solid #e8dfc9; color:#7a6a4f; font-weight:700; }
-  .chip.active{ background:var(--ink); color:#fff; border-color:var(--ink); }
-  .screen{ display:none; } .screen.active{ display:block; }
-  .toast{ position:fixed; left:50%; transform:translateX(-50%); bottom:92px; background:var(--ink); color:#fff; font-weight:700; padding:10px 20px; border-radius:14px; z-index:99; font-size:14px; opacity:0; transition:.25s; pointer-events:none; }
-  .toast.show{ opacity:1; }
-  .qty-btn{ width:34px; height:34px; border-radius:10px; background:#f5efe3; font-weight:800; display:flex; align-items:center; justify-content:center; }
-  .pulse{ animation:pulse .25s ease; } @keyframes pulse{ 0%{transform:scale(.95)} 100%{transform:scale(1)} }
-  .banner-track{ display:flex; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; }
-  .banner-track::-webkit-scrollbar{ display:none; }
-  .banner-slide{ scroll-snap-align:start; flex:0 0 100%; }
-  .fade-in{ animation:fadein .3s ease; } @keyframes fadein{ from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none} }
-  input:focus, textarea:focus { outline: none; }
-  #searchWrap .card:focus-within { box-shadow: 0 0 0 2px rgba(212,175,55,.30), 0 4px 16px rgba(212,175,55,.14); border-color: #e5d3a1; }
-  .screen-chat-input:focus-within { box-shadow: 0 0 0 2px rgba(212,175,55,.30); }
+:root{
+  --bg:#FAF8F3; --surface:#FFFFFF; --sand:#F1EBDD; --text:#231A10; --muted:#7A6A55;
+  --gold1:#C9A24B; --gold2:#A67C2E; --hairline:#D9C48F; --sand-soft:#F5F0E4;
+  --ok:#3E7B5A; --err:#B3483B; --shadow:0 10px 30px rgba(35,26,16,.10); --chip:#FFFFFF;
+}
+[data-theme="dark"]{
+  --bg:#14100B; --surface:#1E1812; --sand:#241D14; --text:#F5EFE4; --muted:#A08D74;
+  --gold1:#C9A24B; --gold2:#A67C2E; --hairline:#3A3021; --sand-soft:#241D14;
+  --ok:#5FA37E; --err:#C96A5D; --shadow:0 10px 30px rgba(0,0,0,.45); --chip:#1E1812;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);font-family:'Manrope',sans-serif;font-size:15px;line-height:1.5;overflow-x:hidden}
+.serif{font-family:'Playfair Display',serif}
+.hidden{display:none!important}
+::-webkit-scrollbar{display:none}
+/* ---- анимации: пресеты ---- */
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes shimmer{0%{transform:translateX(-130%)}100%{transform:translateX(230%)}}
+@keyframes floatGold{0%{transform:translateY(0) scale(1);opacity:0}12%{opacity:.9}100%{transform:translateY(-130px) scale(.4);opacity:0}}
+@keyframes pop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+[data-anim="silk"] .anim,[data-anim="shimmer"] .anim,[data-anim="parallax"] .anim,[data-anim="festive"] .anim{animation:fadeUp .45s ease both}
+[data-anim="minimal"] *{animation:none!important;transition:none!important}
+[data-anim="minimal"] .anim{opacity:1;transform:none}
+.btn-gold{position:relative;overflow:hidden}
+[data-anim="shimmer"] .btn-gold::after,[data-anim="shimmer"] .price-gold::after{content:'';position:absolute;top:0;left:0;height:100%;width:38%;
+  background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.5) 50%,transparent 70%);animation:shimmer 2.8s ease-in-out infinite}
+[data-anim="festive"] #main::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:5;
+  background:radial-gradient(circle 2px at 12% 78%,#D9C48F 45%,transparent 50%),radial-gradient(circle 1.6px at 30% 92%,#C9A24B 45%,transparent 50%),
+  radial-gradient(circle 2.2px at 55% 84%,#E8D9A8 45%,transparent 50%),radial-gradient(circle 1.4px at 74% 90%,#C9A24B 45%,transparent 50%),
+  radial-gradient(circle 2px at 90% 80%,#D9C48F 45%,transparent 50%);
+  animation:floatGold 7s linear infinite}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+/* ---- каркас ---- */
+#app{max-width:430px;margin:0 auto;min-height:100dvh;padding-bottom:92px}
+#main{padding:0 16px 24px}
+header{position:sticky;top:0;z-index:40;background:var(--bg);padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 8px}
+.hrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.brand{line-height:1}
+.brand .logo{font-size:26px;font-weight:900;letter-spacing:.04em}
+.brand .sub{font-size:8.5px;font-weight:700;letter-spacing:.32em;color:var(--gold2);text-transform:uppercase;margin-top:3px}
+.goldtext{background:linear-gradient(120deg,var(--gold1),var(--gold2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.icon-btn{width:44px;height:44px;border:none;border-radius:14px;background:var(--chip);display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;box-shadow:var(--shadow)}
+.badge-n{position:absolute;top:-5px;right:-5px;min-width:19px;height:19px;border-radius:10px;background:linear-gradient(120deg,var(--gold1),var(--gold2));color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 5px}
+.chip-country{display:flex;align-items:center;gap:6px;height:44px;padding:0 14px;border-radius:14px;background:var(--chip);font-weight:700;font-size:13px;cursor:pointer;box-shadow:var(--shadow);border:1px solid var(--hairline)}
+/* поиск */
+.search{margin-top:12px;display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--hairline);border-radius:14px;padding:0 14px;height:46px}
+.search:focus-within{border-color:var(--gold1);box-shadow:0 0 0 1px var(--gold1)}
+.search input{flex:1;border:none;outline:none;background:transparent;color:var(--text);font:600 14px 'Manrope'}
+.search svg{flex:none}
+/* баннеры */
+#banners{margin:14px -16px 0;overflow:hidden;scroll-snap-type:x mandatory;display:flex;overflow-x:auto}
+.banner{flex:none;width:100%;scroll-snap-align:center;position:relative;border-radius:20px;overflow:hidden;height:150px}
+.banner img{width:100%;height:100%;object-fit:cover}
+.banner .btext{position:absolute;left:0;right:0;bottom:0;padding:34px 18px 14px;background:linear-gradient(transparent,rgba(20,16,11,.82));color:#fff}
+.banner .bt{font-family:'Playfair Display',serif;font-size:19px;font-weight:700;line-height:1.2}
+.banner .bs{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#E8D9A8;margin-top:3px}
+[data-anim="parallax"] .banner img{will-change:transform}
+/* чипы категорий */
+#chips{display:flex;gap:8px;overflow-x:auto;margin:16px -16px 0;padding:2px 16px 4px}
+.chip{flex:none;padding:9px 16px;border-radius:13px;background:var(--chip);border:1px solid var(--hairline);font-weight:700;font-size:13px;color:var(--muted);cursor:pointer;white-space:nowrap}
+.chip.on{background:linear-gradient(120deg,var(--gold1),var(--gold2));border-color:transparent;color:#fff}
+/* секции и сетка */
+.sect{margin-top:22px}
+.sect-h{display:flex;align-items:baseline;justify-content:space-between}
+.sect-t{font-family:'Playfair Display',serif;font-size:21px;font-weight:700}
+.sect-s{font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--gold2)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.card{background:var(--surface);border-radius:20px;overflow:hidden;box-shadow:var(--shadow);cursor:pointer;position:relative;transition:transform .2s}
+.card:active{transform:scale(.97)}
+.card .ph{position:relative;aspect-ratio:4/5;background:var(--sand)}
+.card .ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph-skel{width:100%;height:100%;background:linear-gradient(100deg,var(--sand) 40%,var(--sand-soft) 50%,var(--sand) 60%);background-size:200% 100%;animation:skel 1.2s infinite}
+@keyframes skel{to{background-position:-200% 0}}
+.tags{position:absolute;top:10px;left:10px;display:flex;flex-direction:column;gap:5px}
+.tag{font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:4px 8px;border-radius:8px;background:rgba(255,255,255,.94);color:var(--gold2)}
+.tag.t-gold{background:linear-gradient(120deg,var(--gold1),var(--gold2));color:#fff}
+.heart{position:absolute;top:8px;right:8px;width:34px;height:34px;border-radius:11px;background:rgba(255,255,255,.92);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.qadd{position:absolute;bottom:8px;right:8px;width:34px;height:34px;border-radius:11px;border:none;background:linear-gradient(120deg,var(--gold1),var(--gold2));color:#fff;font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 12px rgba(166,124,46,.4)}
+.card .info{padding:11px 13px 13px}
+.card .nm{font-weight:800;font-size:13.5px;line-height:1.28;min-height:36px}
+.card .wt{font-size:11px;color:var(--muted);font-weight:600;margin-top:2px}
+.price-row{display:flex;align-items:baseline;gap:7px;margin-top:7px}
+.price-gold{position:relative;font-family:'Playfair Display',serif;font-size:16.5px;font-weight:700;overflow:hidden;background:linear-gradient(120deg,var(--gold1),var(--gold2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.oldp{font-size:11.5px;color:var(--muted);text-decoration:line-through;font-weight:600}
+.disc{font-size:10px;font-weight:800;color:var(--gold2)}
+/* пустые состояния */
+.empty{text-align:center;padding:44px 20px;color:var(--muted)}
+.empty .e-title{font-family:'Playfair Display',serif;font-size:17px;color:var(--text);font-weight:700}
+/* bottom sheet */
+.sheet-bg{position:fixed;inset:0;background:rgba(20,16,11,.45);z-index:60;opacity:0;transition:opacity .25s}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:61;background:var(--bg);border-radius:24px 24px 0 0;max-height:88dvh;overflow-y:auto;transform:translateY(100%);transition:transform .3s cubic-bezier(.2,.9,.3,1);padding-bottom:calc(env(safe-area-inset-bottom,0px) + 16px)}
+.sheet.open{transform:none}
+.grab{width:40px;height:4px;border-radius:2px;background:var(--hairline);margin:10px auto 2px}
+.sheet-pad{padding:6px 20px 8px}
+.sh-title{font-family:'Playfair Display',serif;font-size:22px;font-weight:700}
+/* оверлей-экран (заказы, чекаут, страна) */
+.ovl{position:fixed;inset:0;background:var(--bg);z-index:70;overflow-y:auto;padding:calc(env(safe-area-inset-top,0px) + 14px) 18px 120px;transform:translateX(100%);transition:transform .28s cubic-bezier(.2,.9,.3,1)}
+.ovl.open{transform:none}
+.ovl-back{display:flex;align-items:center;gap:10px;margin-bottom:12px;cursor:pointer;font-weight:700;color:var(--muted);font-size:13px}
+.ovl-title{font-family:'Playfair Display',serif;font-size:24px;font-weight:700}
+/* формы */
+.field{background:var(--surface);border:1px solid var(--hairline);border-radius:15px;padding:11px 15px;margin-top:11px}
+.field label{display:block;font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.field input,.field textarea,.field select{width:100%;border:none;outline:none;background:transparent;color:var(--text);font:600 15px 'Manrope'}
+.field textarea{resize:none}
+.opt{display:flex;align-items:center;justify-content:space-between;padding:13px 15px;background:var(--surface);border:1.5px solid transparent;border-radius:15px;margin-top:9px;cursor:pointer}
+.opt.on{border-color:var(--gold1);background:var(--surface)}
+.radio{width:19px;height:19px;border-radius:50%;border:2px solid var(--hairline);flex:none}
+.opt.on .radio{border-color:var(--gold1);background:radial-gradient(circle,var(--gold1) 0 5px,transparent 6px)}
+/* кнопки */
+.btn{width:100%;border:none;border-radius:15px;padding:15px;font:800 15px 'Manrope';letter-spacing:.02em;cursor:pointer}
+.btn-gold{background:linear-gradient(120deg,var(--gold1),var(--gold2));color:#fff;box-shadow:0 8px 20px rgba(166,124,46,.35)}
+.btn-ghost{background:var(--surface);color:var(--text);border:1px solid var(--hairline)}
+.btn[disabled]{opacity:.5;pointer-events:none}
+.btn-sm{padding:10px 16px;font-size:13px;width:auto}
+/* toast */
+#toast{position:fixed;left:50%;bottom:104px;transform:translate(-50%,20px);background:var(--text);color:var(--bg);padding:11px 18px;border-radius:13px;font-weight:700;font-size:13px;z-index:99;opacity:0;transition:.25s;pointer-events:none;max-width:82%;text-align:center}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+/* нижняя навигация */
+nav{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--bg);border-top:1px solid var(--hairline);display:flex;justify-content:center;padding:6px 0 calc(env(safe-area-inset-bottom,0px) + 6px);transition:transform .2s}
+nav.kb{transform:translateY(110%)}
+.nav-in{display:flex;width:100%;max-width:430px}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 0;font-size:10.5px;font-weight:700;color:var(--muted);cursor:pointer;border:none;background:transparent}
+.tab.on{color:var(--gold2)}
+.tab .tic{font-size:20px;line-height:1}
+/* корзина-шторка, строки */
+.cline{display:flex;gap:11px;align-items:center;padding:11px 0;border-bottom:1px solid var(--hairline)}
+.cline:last-child{border-bottom:none}
+.cline img{width:58px;height:58px;border-radius:13px;object-fit:cover;flex:none}
+.qty{display:flex;align-items:center;gap:0;border:1px solid var(--hairline);border-radius:11px;overflow:hidden;flex:none}
+.qty button{width:32px;height:32px;border:none;background:transparent;color:var(--text);font-size:17px;font-weight:700;cursor:pointer}
+.qty span{width:28px;text-align:center;font-weight:800;font-size:13px}
+/* шаги чекаута */
+.steps{display:flex;gap:6px;margin:10px 0 4px}
+.stepdot{flex:1;height:3.5px;border-radius:2px;background:var(--hairline)}
+.stepdot.on{background:linear-gradient(120deg,var(--gold1),var(--gold2))}
+/* чат */
+#chatBox{display:flex;flex-direction:column;gap:8px;padding:6px 0 16px}
+.bub{max-width:82%;padding:9px 14px;border-radius:17px;font-size:14px;font-weight:600;animation:fadeUp .25s ease}
+.bub.me{align-self:flex-end;background:var(--text);color:var(--bg);border-bottom-right-radius:5px}
+.bub.them{align-self:flex-start;background:var(--surface);border:1px solid var(--hairline);border-bottom-left-radius:5px}
+.bub .bt{font-size:9.5px;color:var(--muted);margin-top:3px;font-weight:700}
+.bub img{max-width:180px;border-radius:11px;margin-top:6px;display:block}
+.qr-chips{display:flex;gap:7px;overflow-x:auto;padding:4px 0 10px}
+.qr-chip{flex:none;padding:8px 13px;background:var(--surface);border:1px solid var(--gold1);color:var(--gold2);border-radius:12px;font-size:12.5px;font-weight:700;cursor:pointer}
+.chat-input{display:flex;gap:8px;padding:10px 0 4px;position:sticky;bottom:0;background:var(--bg)}
+.chat-input input{flex:1;background:var(--surface);border:1px solid var(--hairline);border-radius:14px;padding:0 15px;height:46px;color:var(--text);font:600 14px 'Manrope';outline:none}
+.chat-input button{width:46px;height:46px;border-radius:14px;border:none;background:linear-gradient(120deg,var(--gold1),var(--gold2));color:#fff;font-size:18px;cursor:pointer}
+/* профиль */
+.prow{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--hairline);border-radius:15px;padding:14px 16px;margin-top:10px;cursor:pointer}
+.prow .pl{font-weight:800;font-size:13.5px}
+.prow .pv{color:var(--muted);font-weight:700;font-size:13px}
+/* успех */
+.success-wrap{text-align:center;padding:60px 24px 20px}
+.check-gold{width:86px;height:86px;border-radius:50%;background:linear-gradient(120deg,var(--gold1),var(--gold2));display:flex;align-items:center;justify-content:center;margin:0 auto;animation:pop .5s ease both;color:#fff}
+.onum{font-family:'Playfair Display',serif;font-size:34px;font-weight:900;margin-top:18px}
+/* прогресс доставки */
+.dprog{background:var(--sand);border-radius:12px;padding:11px 13px;margin-top:12px;font-size:12px;font-weight:700;color:var(--muted)}
+.dbar{height:5px;border-radius:3px;background:var(--hairline);margin-top:8px;overflow:hidden}
+.dbar>div{height:100%;background:linear-gradient(120deg,var(--gold1),var(--gold2));border-radius:3px;transition:width .3s}
+/* заказы: статусы */
+.st-pill{font-size:10.5px;font-weight:800;padding:4px 9px;border-radius:9px;letter-spacing:.04em}
+.st-new{background:var(--sand);color:var(--muted)} .st-confirmed,.st-paid{background:#EBF3EC;color:var(--ok)}
+.st-packing,.st-shipping{background:#F7EEDC;color:var(--gold2)} .st-delivered{background:#EBF3EC;color:var(--ok)}
+.st-cancelled,.st-refunded{background:#F6E7E4;color:var(--err)} .st-awaiting_payment{background:#F7EEDC;color:var(--gold2)}
+.tl{margin-top:8px;font-size:11.5px;color:var(--muted);font-weight:600}
+.tl div{padding:2px 0}
 </style>
 </head>
-<body class="pb-24">
-
-<!-- HEADER -->
-<div class="sticky top-0 z-30 bg-[#faf8f3]/95 backdrop-blur px-4 pt-4 pb-3 border-b border-[#f0e9dd]">
-  <div class="flex items-center justify-between">
-    <div>
-      <div class="display text-[28px] font-extrabold tracking-[0.18em] leading-none">SAHAR</div>
-      <div class="text-[10px] font-bold tracking-[0.3em] uppercase gold mt-1" id="tagline">Премиальные сладости</div>
+<body data-anim="silk">
+<div id="app">
+  <header>
+    <div class="hrow">
+      <div class="brand"><div class="logo serif goldtext">SAHAR</div><div class="sub">Премиальные сладости</div></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="chip-country" onclick="openCountrySheet()"><span id="cFlag">🇷🇺</span><span id="cCode">RU</span></div>
+        <button class="icon-btn" onclick="openCart()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+          <span class="badge-n hidden" id="cartN">0</span>
+        </button>
+      </div>
     </div>
-    <div class="flex items-center gap-2">
-      <button onclick="toggleLang()" id="langBtn" class="text-xs font-extrabold tracking-widest text-[#8b7a5c] px-2 py-1">RU</button>
-      <button onclick="openCart()" class="relative w-11 h-11 rounded-full bg-white border border-[#f0e9dd] flex items-center justify-center">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#231a10" stroke-width="1.7"><path d="M6 7h12l1.2 13H4.8L6 7Z"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/></svg>
-        <span id="cartBadge" class="hidden absolute -top-1 -right-1 bg-[#b08d3f] text-white text-[10px] font-extrabold w-5 h-5 rounded-full flex items-center justify-center">0</span>
-      </button>
+    <div class="search">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#A67C2E" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
+      <input id="q" placeholder="Найти трюфели, наборы, шоколад…" oninput="onSearch()">
     </div>
+  </header>
+  <div id="main">
+    <div id="banners"></div>
+    <div id="chips"></div>
+    <div id="sections"></div>
   </div>
 </div>
 
-<!-- SEARCH -->
-<div class="px-4 pt-4" id="searchWrap">
-  <div class="card flex items-center gap-2 px-4 h-12">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b08d3f" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-    <input id="searchInput" oninput="onSearch()" class="w-full h-full bg-transparent text-[15px] font-semibold placeholder-[#b9ab8f]" placeholder="Поиск по каталогу">
-  </div>
-  <div id="chips" class="flex gap-2 overflow-x-auto mt-3 pb-1 -mx-4 px-4"></div>
-</div>
+<!-- product sheet -->
+<div class="sheet-bg hidden" id="psBg" onclick="closeSheet('ps')"></div>
+<div class="sheet" id="ps"><div class="grab"></div><div class="sheet-pad" id="psBody"></div></div>
+<!-- cart sheet -->
+<div class="sheet-bg hidden" id="cartBg" onclick="closeSheet('cart')"></div>
+<div class="sheet" id="cart"><div class="grab"></div><div class="sheet-pad" id="cartBody"></div></div>
+<!-- country sheet -->
+<div class="sheet-bg hidden" id="csBg" onclick="closeSheet('cs')"></div>
+<div class="sheet" id="cs"><div class="grab"></div><div class="sheet-pad" id="csBody"></div></div>
 
-<!-- HOME -->
-<div id="screen-home" class="screen active px-4 pt-4">
-  <!-- БАННЕР-КАРУСЕЛЬ -->
-  <div class="rounded-2xl overflow-hidden mb-2 relative">
-    <div class="banner-track" id="bannerTrack"></div>
-    <div class="absolute bottom-3 right-4 flex gap-1.5" id="bannerDots"></div>
-  </div>
-  <!-- ХИТЫ -->
-  <div id="hitsWrap" class="hidden">
-    <div class="flex items-baseline justify-between mt-5 mb-3">
-      <div class="display text-2xl font-extrabold" id="hitsTitle">Хиты продаж</div>
-      <div class="text-[10px] font-extrabold uppercase tracking-[0.2em] gold">SAHAR</div>
-    </div>
-    <div class="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4" id="hitsRow"></div>
-  </div>
-  <!-- КАТАЛОГ -->
-  <div class="flex items-baseline justify-between mt-5 mb-3">
-    <div class="display text-2xl font-extrabold" id="catalogTitle">Каталог</div>
-  </div>
-  <div id="grid" class="grid grid-cols-2 gap-3"></div>
-</div>
+<!-- overlay экраны -->
+<div class="ovl" id="ovlGeneric"><div class="ovl-back" onclick="closeOvl()">← <span id="ovlBackT">Назад</span></div><div id="ovlBody"></div></div>
 
-<!-- FAVORITES -->
-<div id="screen-fav" class="screen px-4 pt-4">
-  <div class="display text-3xl font-extrabold mb-4" id="favTitle">Избранное</div>
-  <div id="favGrid" class="grid grid-cols-2 gap-3"></div>
-  <div id="favEmpty" class="hidden text-center text-sm font-semibold text-[#a39274] py-16"></div>
-</div>
+<nav><div class="nav-in" id="navIn"></div></nav>
+<div id="toast"></div>
+<input type="file" id="photoFile" accept="image/*" class="hidden" onchange="onPhotoPicked(event)">
 
-<!-- MESSAGES -->
-<div id="screen-chat" class="screen px-4 pt-4">
-  <div class="display text-3xl font-extrabold mb-2" id="chatTitle">Сообщения</div>
-  <div class="text-xs font-semibold text-[#a39274] mb-4" id="chatSub"></div>
-  <div id="chatBox" class="flex flex-col gap-2 pb-4"></div>
-  <div class="card screen-chat-input flex items-center gap-2 px-4 h-14 sticky bottom-20 z-10 bg-white">
-    <input id="chatInput" class="w-full bg-transparent text-[15px] font-semibold" onkeydown="if(event.key==='Enter')sendChat()">
-    <button onclick="sendChat()" class="btn-gold w-9 h-9 rounded-xl flex items-center justify-center shrink-0">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
-    </button>
-  </div>
-</div>
-
-<!-- PROFILE -->
-<div id="screen-profile" class="screen px-4 pt-4">
-  <div class="card p-5 flex items-center gap-4 mb-4">
-    <div id="avatar" class="w-14 h-14 rounded-full bg-[#231a10] text-[#c9a24b] display text-xl font-extrabold flex items-center justify-center">S</div>
-    <div>
-      <div id="pName" class="text-lg font-extrabold">Клиент SAHAR</div>
-      <div id="pId" class="text-xs font-bold text-[#a39274]"></div>
-    </div>
-  </div>
-  <button onclick="openOrders()" class="card w-full p-4 flex items-center justify-between mb-3">
-    <span class="font-extrabold" id="myOrdersBtn"></span>
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b08d3f" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg>
-  </button>
-  <button onclick="toggleLang()" class="card w-full p-4 flex items-center justify-between mb-3">
-    <span class="font-extrabold" id="langBtn2"></span>
-    <span class="text-xs font-extrabold gold" id="langVal">RU</span>
-  </button>
-  <button onclick="nav('chat')" class="card w-full p-4 flex items-center justify-between mb-3">
-    <span class="font-extrabold" id="supportBtn"></span>
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b08d3f" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg>
-  </button>
-  <div class="text-center text-[10px] font-bold tracking-[0.25em] uppercase text-[#b9ab8f] mt-8">SAHAR · PREMIUM SWEETS · СНГ</div>
-</div>
-
-<!-- BOTTOM NAV -->
-<div class="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#f0e9dd]" style="padding-bottom:env(safe-area-inset-bottom)">
-  <div class="flex items-stretch">
-    <button onclick="nav('home')" class="navbtn flex-1 flex flex-col items-center gap-1 pt-2.5 pb-2" data-s="home">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 7h12l1.2 13H4.8L6 7Z"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/></svg>
-      <span class="text-[10px] font-bold" id="navShop"></span>
-    </button>
-    <button onclick="nav('fav')" class="navbtn flex-1 flex flex-col items-center gap-1 pt-2.5 pb-2" data-s="fav">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 20s-7-4.6-7-9.4C5 8 7 6 9.4 6c1.2 0 2 .5 2.6 1.3C12.6 6.5 13.4 6 14.6 6 17 6 19 8 19 10.6 19 15.4 12 20 12 20Z"/></svg>
-      <span class="text-[10px] font-bold" id="navFav"></span>
-    </button>
-    <button onclick="nav('chat')" class="navbtn flex-1 flex flex-col items-center gap-1 pt-2.5 pb-2" data-s="chat">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 12a8 8 0 0 1-8 8H4l2-3a8 8 0 1 1 15-5Z"/><path d="m12 13.5 0 .01M8.5 13.5l0 .01M15.5 13.5l0 .01"/></svg>
-      <span class="text-[10px] font-bold" id="navChat"></span>
-    </button>
-    <button onclick="nav('profile')" class="navbtn flex-1 flex flex-col items-center gap-1 pt-2.5 pb-2" data-s="profile">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>
-      <span class="text-[10px] font-bold" id="navProfile"></span>
-    </button>
-  </div>
-</div>
-
-<!-- PRODUCT SHEET -->
-<div id="sheet" class="fixed inset-0 z-50 hidden">
-  <div class="absolute inset-0 bg-black/40" onclick="closeSheet()"></div>
-  <div class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[88vh] overflow-y-auto" id="sheetBody"></div>
-</div>
-
-<!-- CART / CHECKOUT / ORDERS -->
-<div id="overlay" class="fixed inset-0 z-50 hidden bg-[#faf8f3] overflow-y-auto">
-  <div class="sticky top-0 bg-[#faf8f3] px-4 py-4 flex items-center gap-3 border-b border-[#f0e9dd] z-10">
-    <button onclick="closeOverlay()" class="w-9 h-9 rounded-full bg-white border border-[#f0e9dd] flex items-center justify-center">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#231a10" stroke-width="2"><path d="M15 6l-6 6 6 6"/></svg>
-    </button>
-    <div id="overlayTitle" class="display text-xl font-extrabold"></div>
-  </div>
-  <div id="overlayBody" class="px-4 py-4 pb-32"></div>
-</div>
-
-<div id="toast" class="toast"></div>
-
-<script src="catalog-fallback.js"></script>
 <script>
-const tg = window.Telegram.WebApp;
-try { tg.ready(); tg.expand(); tg.setHeaderColor('#faf8f3'); } catch(e) {}
-
-let TOKEN = '', USER = null, IS_ADMIN = false, LANG = 'ru', DEMO = false;
-let cats = [], products = [], favSet = new Set(), currentProduct = null, chatTimer = null, bannerTimer = null;
-
-const BANNERS = [
-  { img: 'https://dostonravshanov1006800-beep.github.io/sahar-shop/assets/banner_box.jpg',
-    kicker_ru: 'SAHAR · мы открыты', title_ru: 'Заказы принимаются<br>круглосуточно', kicker_uz: 'SAHAR · ochiqmiz', title_uz: 'Buyurtmalar qabul<br>qilinadi', cat: 1 },
-  { img: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8f/Chocolate_Truffles_at_Harrods_in_London_by_Robbie_Conceptuel.png/960px-Chocolate_Truffles_at_Harrods_in_London_by_Robbie_Conceptuel.png',
-    kicker_ru: 'Коллекция SAHAR Signature', title_ru: 'Трюфели ручной<br>работы', kicker_uz: 'SAHAR Signature', title_uz: 'Qo\'lda yasalgan<br>trüfellari', cat: 1 },
-  { img: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/34/020260501_Chocolate-covered_strawberries.jpg/960px-020260501_Chocolate-covered_strawberries.jpg',
-    kicker_ru: '−20% на этой неделе', title_ru: 'Клубника в белом<br>шоколаде', kicker_uz: 'Bu hafta −20%', title_uz: 'Oq shokoladli<br>qulupnay', cat: 1, badge: 'SALE −20%' },
-  { img: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/28/Chocolate_truffles_-_prep1.jpg/960px-Chocolate_truffles_-_prep1.jpg',
-    kicker_ru: 'Ручная работа · доставка по СНГ', title_ru: 'Подарочные наборы<br>для дорогих людей', kicker_uz: 'Qo\'lda yasalgan · MDH bo\'ylab', title_uz: 'Sevgan insonga<br>sovg\'a to\'plamlari', cat: 4 },
-];
+const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+if (tg) { tg.ready(); tg.expand(); }
+const API = 'https://sahar-shop.dostonravshanov1006800.workers.dev';
+const PH = 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Chocolate_truffle.jpg/640px-Chocolate_truffle.jpg';
+const $ = id => document.getElementById(id);
+const haptic = () => { if (S.settings.haptic !== false && tg && tg.HapticFeedback) try { tg.HapticFeedback.impactOccurred('light'); } catch(e){} };
+let DEMO = false;
 
 const I18N = {
-  ru: { tagline:'Премиальные сладости', search:'Поиск по каталогу', hitsTitle:'Хиты продаж',
-    catalogTitle:'Каталог', favTitle:'Избранное', chatTitle:'Сообщения',
-    navShop:'Магазин', navFav:'Избранное', navChat:'Сообщения', navProfile:'Профиль',
-    myOrders:'Мои заказы', lang:'Язык', support:'Поддержка', toCart:'В корзину',
-    inCart:'Добавлено в корзину', cart:'Корзина', checkout:'Оформить заказ', total:'Итого',
-    address:'Адрес доставки', phone:'Телефон', comment:'Комментарий (необязательно)',
-    payment:'Способ оплаты', payCash:'Наличными при получении', payCard:'Перевод на карту',
-    payClick:'Click', payPayme:'Payme', confirm:'Подтвердить заказ', orderDone:'Заказ принят!',
-    orderDoneSub:'Владелец уже получил вашу заявку и свяжется с вами.',
-    emptyCart:'Корзина пуста', favEmpty:'Здесь появятся ваши любимые сладости',
-    chatSub:'Напишите владельцу — он ответит лично', noOrders:'Заказов пока нет',
-    all:'Все', stock:'в наличии', out:'Нет в наличии',
-    statusNew:'Новый', statusAccepted:'Принят', statusDelivering:'В доставке',
-    statusDone:'Завершён', statusCancelled:'Отменён',
-    tgOnly:'Откройте приложение через Telegram, чтобы заказывать',
-    serverWait:'Сервер ещё не подключён — заработает автоматически после подключения (шаг Cloudflare)',
-    profileNote:'полный доступ после подключения сервера',
-    profileDemo:'Гость · откройте через Telegram' },
-  uz: { tagline:'Premium shirinliklar', search:'Katalogdan qidirish', hitsTitle:'Eng saralangan',
-    catalogTitle:'Katalog', favTitle:'Sevimlilar', chatTitle:'Xabarlar',
-    navShop:'Do\'kon', navFav:'Sevimlilar', navChat:'Xabarlar', navProfile:'Profil',
-    myOrders:'Buyurtmalarim', lang:'Til', support:'Qo\'llab-quvvatlash', toCart:'Savatga',
-    inCart:'Savatga qo\'shildi', cart:'Savat', checkout:'Buyurtma berish', total:'Jami',
-    address:'Yetkazish manzili', phone:'Telefon', comment:'Izoh (majburiy emas)',
-    payment:'To\'lov usuli', payCash:'Qabul qilib olishda naqd', payCard:'Kartaga o\'tkazish',
-    payClick:'Click', payPayme:'Payme', confirm:'Buyurtmani tasdiqlash', orderDone:'Buyurtma qabul qilindi!',
-    orderDoneSub:'Egasiga arizangiz yuborildi, u siz bilan bog\'lanadi.',
-    emptyCart:'Savat bo\'sh', favEmpty:'Sevimli shirinliklaringiz shu yerda',
-    chatSub:'Egasiga yozing — u shaxsan javob beradi', noOrders:'Hozircha buyurtma yo\'q',
-    all:'Barchasi', stock:'omborda', out:'Mavjud emas',
-    statusNew:'Yangi', statusAccepted:'Qabul qilindi', statusDelivering:'Yetkazilmoqda',
-    statusDone:'Bajarildi', statusCancelled:'Bekor qilindi',
-    tgOnly:'Buyurtma berish uchun ilovani Telegram orqali oching',
-    serverWait:'Server hali ulanmagan — ulangandan keyin avtomatik ishlaydi',
-    profileNote:"server ulangandan keyin to'liq kirish",
-    profileDemo:'Mehmon · Telegram orqali oching' }
+  ru:{shop:'Магазин',fav:'Избранное',chat:'Сообщения',profile:'Профиль',cart:'Корзина',cartEmpty:'Здесь пока пусто — но это легко исправить',all:'Все',hits:'Хиты SAHAR',news:'Новинки',sets:'Подарочные наборы',add:'Добавить в корзину',qty:'Количество',checkout:'Оформить заказ',total:'Итого',delivery:'Доставка',free:'Бесплатно',promo:'Промокод',apply:'Применить',giftCard:'Открытка с текстом',giftPack:'Премиум-упаковка +$3',anon:'Анонимный подарок',recip:'Получатель',step1:'Получатель',step2:'Доставка',step3:'Оплата и подтверждение',name:'Имя и фамилия',phone:'Телефон',sharePhone:'Поделиться номером',comment:'Комментарий к заказу',city:'Город',address:'Адрес доставки',courier:'Курьер по городу',postal:'Почта / служба доставки',payMethod:'Способ оплаты',agree:'Согласен с условиями оферты и обработки данных',confirm:'Подтвердить заказ',successT:'Заказ принят',successS:'Мы свяжемся с вами в ближайшее время',myOrders:'Мои заказы',orders:'Заказы',writeOwner:'Написать владельцу',noOrders:'Заказов пока нет',repeat:'Повторить заказ',country:'Страна',lang:'Язык',theme:'Тема',themeAuto:'Авто',themeLight:'Светлая',themeDark:'Тёмная',tid:'Telegram ID',chatSub:'Напишите нам — подберём набор, ответим на вопросы',send:'Отправить',faq:'Частые вопросы',freeFrom2:'Ещё {n} до бесплатной доставки',perish:'Свежий десерт — доставка только курьером по городу в день заказа',net:'Связь пропала. Мы сохранили заказ — повторите попытку',orderAccepted:'Спасибо! Заказ №{id} принят',added:'Добавлено в корзину',favEmpty:'В избранном пока пусто',srch:'Найти трюфели, наборы, шоколад…'},
+  en:{shop:'Shop',fav:'Favourites',chat:'Messages',profile:'Profile',cart:'Cart',cartEmpty:'Nothing here yet — easy to fix',all:'All',hits:'SAHAR Bestsellers',news:'New Arrivals',sets:'Gift Sets',add:'Add to cart',qty:'Quantity',checkout:'Checkout',total:'Total',delivery:'Delivery',free:'Free',promo:'Promo code',apply:'Apply',giftCard:'Greeting card',giftPack:'Premium packaging +$3',anon:'Anonymous gift',recip:'Recipient',step1:'Recipient',step2:'Delivery',step3:'Payment & confirm',name:'Full name',phone:'Phone',sharePhone:'Share phone number',comment:'Order comment',city:'City',address:'Delivery address',courier:'City courier',postal:'Post / courier service',payMethod:'Payment method',agree:'I agree with the terms of offer and data processing',confirm:'Confirm order',successT:'Order accepted',successS:'We will contact you shortly',myOrders:'My orders',orders:'Orders',writeOwner:'Message the owner',noOrders:'No orders yet',repeat:'Repeat order',country:'Country',lang:'Language',theme:'Theme',themeAuto:'Auto',themeLight:'Light',themeDark:'Dark',tid:'Telegram ID',chatSub:'Message us — we will help you choose a gift set',send:'Send',faq:'FAQ',freeFrom2:'Add {n} more for free delivery',perish:'Fresh dessert — same-day city courier delivery only',net:'Connection lost. Your order is saved — try again',orderAccepted:'Thank you! Order #{id} accepted',added:'Added to cart',favEmpty:'No favourites yet',srch:'Find truffles, sets, chocolate…'},
+  uz:{shop:'Do\'kon',fav:'Sevimlilar',chat:'Xabarlar',profile:'Profil',cart:'Savat',cartEmpty:'Hozircha bo\'sh — osongina to\'ldiriladi',all:'Barchasi',hits:'SAHAR hitlari',news:'Yangiliklar',sets:'Sovg\'a to\'plamlari',add:'Savatga qo\'shish',qty:'Miqdor',checkout:'Buyurtma berish',total:'Jami',delivery:'Yetkazib berish',free:'Bepul',promo:'Promokod',apply:'Qo\'llash',giftCard:'Tabrik kartasi',giftPack:'Premium qadoq +$3',anon:'Anonim sovg\'a',recip:'Qabul qiluvchi',step1:'Qabul qiluvchi',step2:'Yetkazish',step3:'To\'lov va tasdiq',name:'Ism va familiya',phone:'Telefon',sharePhone:'Raqamni ulashish',comment:'Buyurtma izohi',city:'Shahar',address:'Yetkazish manzili',courier:'Shahar kuryeri',postal:'Pochta / kuryer xizmati',payMethod:'To\'lov usuli',agree:'Taklif shartlari bilan tanishdim',confirm:'Buyurtmani tasdiqlash',successT:'Buyurtma qabul qilindi',successS:'Tez orada bog\'lanamiz',myOrders:'Buyurtmalarim',orders:'Buyurtmalar',writeOwner:'Egasiga yozish',noOrders:'Hozircha buyurtma yo\'q',repeat:'Buyurtmani takrorlash',country:'Mamlakat',lang:'Til',theme:'Mavzu',themeAuto:'Auto',themeLight:'Yorug\'',themeDark:'Tungi',tid:'Telegram ID',chatSub:'Yozing — sovg\'a to\'plamini tanlashda yordam beramiz',send:'Yuborish',faq:'Savol-javob',freeFrom2:'Yana {n} — yetkazish bepul',perish:'Yangi shirinlik — faqat shahar kuryeri, buyurtma kunida',net:'Aloqa yo\'qoldi. Buyurtma saqlandi — qayta urinib ko\'ring',orderAccepted:'Rahmat! №{id} buyurtma qabul qilindi',added:'Savatga qo\'shildi',favEmpty:'Sevimlilar bo\'sh',srch:'Tryufellar, to\'plamlar, shokolad izlash…'},
 };
-const t = k => (I18N[LANG] && I18N[LANG][k]) || I18N.ru[k] || k;
-const money = n => n.toLocaleString('ru-RU').replace(/\u00A0/g,' ') + ' сум';
-const RUB_RATE = 150; // сум за 1 ₽ (ориентировочно; покупателям из СНГ)
-const rub = n => '≈' + Math.round(n / RUB_RATE).toLocaleString('ru-RU').replace(/\u00A0/g,' ') + ' ₽';
-const pname = p => LANG === 'uz' ? (p.name_uz || p.name_ru) : p.name_ru;
-const pdesc = p => LANG === 'uz' ? (p.desc_uz || p.desc_ru) : p.desc_ru;
-const PH = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/Chocolate_truffle_-_Delacre.jpg/960px-Chocolate_truffle_-_Delacre.jpg';
-const pimg = p => p.image_url || PH;
+const t = k => (I18N[S.lang] && (I18N[S.lang][k] !== undefined ? I18N[S.lang][k] : I18N.ru[k])) || I18N.ru[k] || k;
 
-const API_BASE = 'https://sahar-shop.dostonravshanov1006800.workers.dev';
-function api(path, opts = {}) {
-  return fetch(API_BASE + '/api' + path, {
-    ...opts,
-    headers: { 'Content-Type': 'application/json', ...(opts.headers||{}) }
-  }).then(async r => { const j = await r.json().catch(()=>({})); if (!r.ok) throw new Error(j.detail || j.error || 'error'); return j; });
+const S = { settings:{rates:{USD:1},rounding:{USD:1},countries:[],payments:[],shop_open:true,anim:'silk',haptic:true},
+  cats:[], prods:[], banners:[], cart:{}, fav:[], lang:'ru', country:null, view:'shop', cat:0, q:'', productId:null, checkout:null, chatTid:0, chatTimer:null };
+
+// ---------- утилиты ----------
+function toast(msg){ const el=$('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),2600); }
+function money(usd){
+  const cur = S.country ? S.country.currency : 'USD';
+  const r = S.settings.rates[cur] || 1;
+  let v = usd * r * (1 + ((S.settings.markup||{})[S.country ? S.country.code : ''] || 0) / 100);
+  const step = S.settings.rounding[cur] || 1;
+  v = Math.round(v / step) * step;
+  const sym = {USD:'$',RUB:'₽',KZT:'₸',UZS:'сўм',BYN:'Br',KGS:'с',AMD:'֏',GEL:'₾',AZN:'₼',TJS:'SM',MDL:'L'}[cur] || cur;
+  return v.toLocaleString('ru-RU').replace(/\u00A0/g,' ') + ' ' + sym;
 }
-const LS = {
-  get: (k, d) => { try { const v = localStorage.getItem('sahar_' + k); return v ? JSON.parse(v) : d; } catch(e) { return d; } },
-  set: (k, v) => localStorage.setItem('sahar_' + k, JSON.stringify(v))
-};
-
-function toast(msg) {
-  const el = document.getElementById('toast');
-  el.textContent = msg; el.classList.add('show');
-  setTimeout(()=>el.classList.remove('show'), 2000);
+function usd(v){ return '$' + (Math.round(v*100)/100).toLocaleString('en-US'); }
+async function api(path, body){
+  const init = tg && tg.initData ? { initData: tg.initData } : {};
+  const r = await fetch(API + '/api' + path, body ? { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...init, ...body }) } : undefined);
+  if (!r.ok) { const e = await r.json().catch(()=>({})); const err = new Error(e.error || 'network'); err.code = r.status; throw err; }
+  return r.json();
 }
-function haptic(){ try{ tg.HapticFeedback.impactOccurred('light'); }catch(e){} }
+function save(){ localStorage.setItem('sahar_v6', JSON.stringify({ cart:S.cart, fav:S.fav, lang:S.lang, country:S.country ? S.country.code : null, theme:S.theme||'auto' })); }
+function loadLocal(){
+  try { const d = JSON.parse(localStorage.getItem('sahar_v6') || '{}');
+    S.cart = d.cart || {}; S.fav = d.fav || []; S.lang = d.lang || 'ru'; S.theme = d.theme || 'auto';
+    if (d.country) { const c = S.settings.countries.find(x=>x.code===d.country); if (c) S.country = c; }
+  } catch(e){}
+}
 
-// ---------- INIT ----------
-var TG_RAW = null;
-function demoMsg() { return (DEMO && TG_RAW) ? t('serverWait') : t('tgOnly'); }
-async function init() {
-  LANG = LS.get('lang', LANG);
-  try { TG_RAW = (tg.initDataUnsafe && tg.initDataUnsafe.user) || null; } catch (e) { TG_RAW = null; }
-  if (!tg.initData) { DEMO = true; }
-  else {
-    try {
-      const j = await api('/verify', { method:'POST', body: JSON.stringify({ initData: tg.initData }) });
-      USER = j.user; IS_ADMIN = j.is_admin;
-    } catch (e) { DEMO = true; }
+// ---------- тема ----------
+function applyTheme(){
+  let dark = S.theme === 'dark';
+  if (S.theme === 'auto' || !S.theme) dark = tg ? tg.colorScheme === 'dark' : false;
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  if (tg && tg.setHeaderColor) try { tg.setHeaderColor(dark ? '#14100B' : '#FAF8F3'); tg.setBackgroundColor(dark ? '#14100B' : '#FAF8F3'); } catch(e){}
+}
+
+// ---------- загрузка ----------
+async function boot(){
+  const lc = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.language_code) || '';
+  if (lc.startsWith('uz')) S.lang = 'uz'; else if (lc.startsWith('en')) S.lang = 'en'; else S.lang = localStorage.getItem('sahar_lang') || 'ru';
+  const [settings, catalog] = await Promise.all([
+    fetch(API + '/api/settings').then(r=>r.json()).catch(()=>({})),
+    fetch(API + '/api/catalog').then(r=>r.json()).catch(()=>({})),
+  ]);
+  S.settings = Object.assign(S.settings, settings);
+  S.cats = catalog.categories || []; S.prods = catalog.products || []; S.banners = catalog.banners || [];
+  document.body.setAttribute('data-anim', S.settings.anim || 'silk');
+  loadLocal();
+  if (!S.country) S.country = S.settings.countries.find(c=>c.code==='RU') || S.settings.countries[0] || null;
+  applyTheme(); applyLang();
+  renderNav(); renderCountry(); renderBanners(); renderChips(); renderSections(); updateCartBadge();
+  if (!tg || !tg.initData) { DEMO = true; toast('Откройте магазин из Telegram для полного доступа'); }
+  if (!localStorage.getItem('sahar_country_seen')) { localStorage.setItem('sahar_country_seen','1'); openCountrySheet(); }
+  // MainButton для чекаута
+  if (tg && tg.MainButton) { tg.MainButton.offClick(mainConfirm); tg.MainButton.onClick(mainConfirm); }
+}
+function applyLang(){ $('q').placeholder = t('srch'); }
+
+// ---------- навигация ----------
+const TABS = [['shop','🛍'],['fav','♡'],['chat','✉'],['profile','👤']];
+function renderNav(){
+  $('navIn').innerHTML = TABS.map(([v,ic]) => `<button class="tab ${S.view===v?'on':''}" onclick="nav('${v}')"><span class="tic">${ic}</span>${t(v==='shop'?'shop':v==='fav'?'fav':v==='chat'?'chat':'profile')}</button>`).join('');
+}
+function nav(v){ haptic(); S.view=v; renderNav();
+  if (v==='shop'){ renderSections(); }
+  if (v==='fav'){ renderSections(); }
+  if (v==='chat'){ openChatView(); }
+  if (v==='profile'){ openProfile(); }
+}
+// клавиатура не перекрывает навигацию
+if (window.visualViewport) visualViewport.addEventListener('resize', () => {
+  document.querySelector('nav').classList.toggle('kb', visualViewport.height < innerHeight * 0.72);
+});
+
+// ---------- рендеры ----------
+function renderCountry(){
+  $('cFlag').textContent = S.country ? S.country.flag : '🏳️';
+  $('cCode').textContent = S.country ? S.country.code : '—';
+}
+function renderBanners(){
+  $('banners').innerHTML = (S.banners||[]).map(b=>`<div class="banner"><img src="${b.image_url}" alt=""><div class="btext"><div class="bt">${b.title_ru||''}</div><div class="bs">${b.sub_ru||''}</div></div></div>`).join('');
+}
+function renderChips(){
+  $('chips').innerHTML = `<button class="chip ${S.cat===0?'on':''}" onclick="pickCat(0)">${t('all')}</button>` +
+    S.cats.map(c=>`<button class="chip ${S.cat===c.id?'on':''}" onclick="pickCat(${c.id})">${S.lang==='en'?c.name_en:(S.lang==='uz'?c.name_uz:c.name_ru)}</button>`).join('');
+}
+function pickCat(id){ haptic(); S.cat=id; renderChips(); renderSections(); }
+function onSearch(){ S.q = $('q').value.trim().toLowerCase(); renderSections(); }
+function pname(p){ return S.lang==='en' ? (p.name_en||p.name_ru) : S.lang==='uz' ? (p.name_uz||p.name_ru) : p.name_ru; }
+function pdesc(p){ return S.lang==='en' ? (p.desc_en||p.desc_ru) : S.lang==='uz' ? (p.desc_uz||p.desc_ru) : p.desc_ru; }
+function badgeHtml(b){ const m={hit:['Хит','t-gold'],new:['Новинка',''],premium:['Premium','t-gold'],limited:['Ограниченная серия','']};
+  return m[b]?`<span class="tag ${m[b][1]}">${m[b][0]}</span>`:''; }
+function cardHtml(p){
+  const d = p.old_price_usd && p.old_price_usd > p.price_usd ? Math.round((1-p.price_usd/p.old_price_usd)*100) : 0;
+  return `<div class="card anim" onclick="openProduct(${p.id})">
+    <div class="ph"><img src="${p.image_url||PH}" loading="lazy" alt="">
+      <div class="tags">${(p.badges||[]).map(badgeHtml).join('')}</div>
+      <button class="heart" onclick="event.stopPropagation();toggleFav(${p.id})">${S.fav.includes(p.id)?'🧡':'🤍'}</button>
+      ${p.stock>0?`<button class="qadd" onclick="event.stopPropagation();addToCart(${p.id},1)">+</button>`:''}
+    </div>
+    <div class="info">
+      <div class="nm">${pname(p)}</div>
+      ${p.weight?`<div class="wt">${p.weight}</div>`:''}
+      <div class="price-row"><span class="price-gold">${money(p.price_usd)}</span>${d?`<span class="oldp">${money(p.old_price_usd)}</span><span class="disc">−${d}%</span>`:''}</div>
+    </div></div>`;
+}
+function filtered(){
+  return S.prods.filter(p => (S.cat===0 || p.cat===S.cat) && (!S.q || (pname(p)+' '+pdesc(p)).toLowerCase().includes(S.q)) && (!S.q || S.view!=='fav'));
+}
+function renderSections(){
+  if (S.view==='fav'){
+    const items = S.prods.filter(p=>S.fav.includes(p.id));
+    $('sections').innerHTML = `<div class="sect"><div class="sect-t">${t('fav')}</div><div class="grid">${items.map(cardHtml).join('') || `<div class="empty" style="grid-column:1/3"><div class="e-title">${t('favEmpty')}</div></div>`}</div></div>`;
+    return;
   }
-  applyLang();
-  refreshFavs();
-  await loadCatalog();
-  refreshCartBadge();
-}
-function applyLang() {
-  document.getElementById('langBtn').textContent = LANG.toUpperCase();
-  document.getElementById('langVal').textContent = LANG.toUpperCase();
-  document.getElementById('tagline').textContent = t('tagline');
-  document.getElementById('searchInput').placeholder = t('search');
-  document.getElementById('hitsTitle').textContent = t('hitsTitle');
-  document.getElementById('catalogTitle').textContent = t('catalogTitle');
-  document.getElementById('favTitle').textContent = t('favTitle');
-  document.getElementById('chatTitle').textContent = t('chatTitle');
-  document.getElementById('navShop').textContent = t('navShop');
-  document.getElementById('navFav').textContent = t('navFav');
-  document.getElementById('navChat').textContent = t('navChat');
-  document.getElementById('navProfile').textContent = t('navProfile');
-  document.getElementById('myOrdersBtn').textContent = t('myOrders');
-  document.getElementById('langBtn2').textContent = t('lang');
-  document.getElementById('supportBtn').textContent = t('support');
-  document.getElementById('chatSub').textContent = t('chatSub');
-  document.getElementById('favEmpty').textContent = t('favEmpty');
-  const u = (USER && USER.first_name) || (TG_RAW && TG_RAW.first_name) || (LANG==='uz' ? 'Mehmon' : 'Гость');
-  document.getElementById('pName').textContent = u;
-  document.getElementById('pId').textContent = USER ? ('Telegram ID: ' + USER.telegram_id)
-    : (TG_RAW ? ('Telegram ID: ' + TG_RAW.id + ' · ' + t('profileNote')) : t('profileDemo'));
-  document.getElementById('avatar').textContent = (u[0] || 'S').toUpperCase();
-  renderBanner(); renderChips(); renderProducts(); renderFav();
-}
-async function toggleLang() {
-  LANG = LANG === 'ru' ? 'uz' : 'ru';
-  applyLang();
-  LS.set('lang', LANG);
-  if (document.querySelector('#screen-chat.active')) await loadChat();
-}
-
-// ---------- BANNER ----------
-function renderBanner() {
-  const track = document.getElementById('bannerTrack');
-  track.innerHTML = BANNERS.map((b, i) => `
-    <div class="banner-slide" onclick="pickCat(${b.cat})">
-      <div class="relative h-44">
-        <img src="${b.img}" class="absolute inset-0 w-full h-full object-cover" alt="">
-        <div class="absolute inset-0" style="background:linear-gradient(90deg,rgba(20,14,8,.85) 0%,rgba(20,14,8,.35) 55%,rgba(20,14,8,0) 100%)"></div>
-        ${b.badge ? `<div class="absolute top-3 left-3 bg-[#c9a24b] text-[#231a10] text-[10px] font-extrabold tracking-widest px-2.5 py-1 rounded-md">${b.badge}</div>` : ''}
-        <div class="absolute bottom-4 left-4 right-14 text-white">
-          <div class="text-[10px] font-extrabold tracking-[0.22em] uppercase text-[#e5c886]">${LANG==='uz'?b.kicker_uz:b.kicker_ru}</div>
-          <div class="display text-[22px] font-extrabold leading-tight mt-1 drop-shadow">${LANG==='uz'?b.title_uz:b.title_ru}</div>
-        </div>
-      </div>
-    </div>`).join('');
-  document.getElementById('bannerDots').innerHTML =
-    BANNERS.map((_, i) => `<div class="bdot ${i===0?'w-5 h-1.5 bg-[#c9a24b]':'w-1.5 h-1.5 bg-white/60'} rounded-full transition-all"></div>`).join('');
-  const el = document.getElementById('bannerTrack');
-  el.onscroll = () => {
-    const idx = Math.round(el.scrollLeft / el.clientWidth);
-    document.querySelectorAll('.bdot').forEach((d, i) => {
-      d.className = 'bdot rounded-full transition-all ' + (i===idx ? 'w-5 h-1.5 bg-[#c9a24b]' : 'w-1.5 h-1.5 bg-white/60');
-    });
-  };
-  clearInterval(bannerTimer);
-  bannerTimer = setInterval(() => {
-    const idx = Math.round(el.scrollLeft / el.clientWidth);
-    const next = (idx + 1) % BANNERS.length;
-    el.scrollTo({ left: next * el.clientWidth, behavior: 'smooth' });
-  }, 4000);
-}
-
-// ---------- CATEGORIES & PRODUCTS ----------
-let allProducts = [], currentCat = 0, searchTimer = null;
-async function loadCatalog() {
-  let j;
-  try { j = await api('/catalog'); }
-  catch (e) {
-    // API ещё не подключён — показываем локальную копию каталога
-    if (typeof FALLBACK_CATEGORIES === 'undefined') { products = []; renderProducts(); return; }
-    j = { categories: FALLBACK_CATEGORIES, products: FALLBACK_PRODUCTS };
+  const hits = S.prods.filter(p=>(p.badges||[]).includes('hit'));
+  const news = S.prods.filter(p=>(p.badges||[]).includes('new'));
+  const sets = S.prods.filter(p=>String(p.cat)===String(S.cats.find(c=>(c.name_ru||'').includes('набор')||(c.name_en||'').includes('set'))?.id));
+  let html = '';
+  if (!S.q && S.cat===0){
+    if (hits.length) html += `<div class="sect"><div class="sect-h"><div class="sect-t">${t('hits')}</div><div class="sect-s">SAHAR</div></div><div class="grid">${hits.map(cardHtml).join('')}</div></div>`;
+    if (news.length) html += `<div class="sect"><div class="sect-t">${t('news')}</div><div class="grid">${news.map(cardHtml).join('')}</div></div>`;
+    if (sets.length) html += `<div class="sect"><div class="sect-t">${t('sets')}</div><div class="grid">${sets.map(cardHtml).join('')}</div></div>`;
   }
-  cats = j.categories.slice();
-  cats.unshift({id:0, name_ru:'Все', name_uz:'Barchasi'});
-  allProducts = j.products;
-  renderChips();
-  loadProducts();
-}
-async function loadProducts() {
-  const q = document.getElementById('searchInput').value.trim().toLowerCase();
-  products = allProducts.filter(p => (!currentCat || p.category_id === currentCat) &&
-    (!q || (pname(p) + ' ' + pdesc(p)).toLowerCase().includes(q)));
-  renderProducts();
-}
-function renderChips() {
-  document.getElementById('chips').innerHTML = cats.map(c =>
-    `<button onclick="pickCat(${c.id})" class="chip ${currentCat===c.id?'active':''} px-4 py-2 rounded-full text-[13px] whitespace-nowrap">${LANG==='uz'?c.name_uz:c.name_ru}</button>`).join('');
-}
-function pickCat(id) { currentCat = id; haptic(); renderChips(); loadProducts(); document.getElementById('screen-home').scrollIntoView(); }
-function onSearch() { clearTimeout(searchTimer); searchTimer = setTimeout(loadProducts, 300); }
-function imgBlock(p, cls) { return `<img src="${pimg(p)}" class="${cls}" loading="lazy" alt="${pname(p)}">`; }
-function productCard(p, wide) {
-  const liked = favSet.has(p.id);
-  const disc = p.old_price > p.price ? Math.round((1 - p.price/p.old_price)*100) : 0;
-  return `
-  <div class="card p-2.5 cursor-pointer pulse ${wide ? 'w-40 shrink-0' : ''}" onclick="openProduct(${p.id})">
-    <div class="rounded-2xl overflow-hidden relative">
-      ${imgBlock(p, 'w-full h-32 object-cover')}
-      ${disc ? `<div class="absolute top-2 left-2 bg-[#231a10] text-[#e5c886] text-[10px] font-extrabold px-2 py-0.5 rounded-md">−${disc}%</div>` : ''}
-      ${`<button onclick="event.stopPropagation();toggleFav(${p.id})" class="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 flex items-center justify-center">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="${liked?'#b08d3f':'none'}" stroke="${liked?'#b08d3f':'#8b7a5c'}" stroke-width="1.8"><path d="M12 20s-7-4.6-7-9.4C5 8 7 6 9.4 6c1.2 0 2 .5 2.6 1.3C12.6 6.5 13.4 6 14.6 6 17 6 19 8 19 10.6 19 15.4 12 20 12 20Z"/></svg>
-      </button>`}
-    </div>
-    <div class="mt-2 text-[14px] font-extrabold leading-tight px-0.5">${pname(p)}</div>
-    <div class="flex items-end justify-between mt-1.5 px-0.5 pb-0.5">
-      <div>
-        <div class="text-[15px] font-extrabold gold">${money(p.price)} <span class="text-[11px] font-bold text-[#b0a184]">${rub(p.price)}</span></div>
-        ${disc ? `<div class="text-[11px] font-bold text-[#b0a184] line-through">${money(p.old_price)}</div>` : ''}
-      </div>
-      <button onclick="event.stopPropagation();addToCart(${p.id})" class="btn-gold text-[12px] px-3 py-1.5 rounded-full">+</button>
-    </div>
-  </div>`;
-}
-function renderProducts() {
-  const hits = products.filter(p => p.old_price > p.price).slice(0, 6);
-  document.getElementById('hitsWrap').classList.toggle('hidden', hits.length === 0);
-  document.getElementById('hitsRow').innerHTML = hits.map(p => productCard(p, true)).join('');
-  document.getElementById('grid').innerHTML = products.map(p => productCard(p, false)).join('') ||
-    `<div class="col-span-2 text-center text-sm font-semibold text-[#a39274] py-14">—</div>`;
+  const catObj = S.cats.find(c=>c.id===S.cat);
+  const catName = S.cat===0 ? t('all') : (catObj ? (S.lang==='en'?catObj.name_en:(S.lang==='uz'?catObj.name_uz:catObj.name_ru)) : '');
+  html += `<div class="sect"><div class="sect-t">${S.q?'"'+$('q').value+'"':catName}</div><div class="grid">${filtered().map(cardHtml).join('') || `<div class="empty" style="grid-column:1/3"><div class="e-title">${t('cartEmpty')}</div></div>`}</div></div>`;
+  $('sections').innerHTML = html;
 }
 
-// ---------- FAVORITES ----------
-function refreshFavs() { favSet = new Set(LS.get('favs', [])); }
-async function toggleFav(pid) {
+// ---------- товар ----------
+function openProduct(pid){
   haptic();
-  favSet.has(pid) ? favSet.delete(pid) : favSet.add(pid);
-  LS.set('favs', [...favSet]);
-  renderProducts(); await renderFav();
-}
-async function renderFav() {
-  const list = allProducts.filter(p => favSet.has(p.id));
-  document.getElementById('favEmpty').classList.toggle('hidden', list.length > 0);
-  document.getElementById('favGrid').innerHTML = list.map(p => productCard(p, false)).join('');
-}
-
-// ---------- PRODUCT SHEET ----------
-function openProduct(pid) {
-  haptic();
-  const p = allProducts.find(x => x.id === pid);
-  if (!p) return;
-  currentProduct = p;
-  sheetQty = 1;
-  const liked = favSet.has(p.id);
-  const disc = p.old_price > p.price ? Math.round((1 - p.price/p.old_price)*100) : 0;
-  document.getElementById('sheetBody').innerHTML = `
-    <div class="relative">
-      ${imgBlock(p, 'w-full h-56 object-cover rounded-t-3xl')}
-      ${disc ? `<div class="absolute top-3 left-3 bg-[#231a10] text-[#e5c886] text-[11px] font-extrabold px-2.5 py-1 rounded-md">−${disc}%</div>` : ''}
-      <button onclick="closeSheet()" class="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 flex items-center justify-center">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#231a10" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
-      </button>
-    </div>
-    <div class="px-5 pb-6 -mt-1">
-      <div class="display text-2xl font-extrabold leading-tight mt-4">${pname(p)}</div>
-      <div class="text-sm font-semibold text-[#6d5c3f] mt-2 leading-relaxed">${pdesc(p)}</div>
-      <div class="flex items-end justify-between mt-5">
-        <div>
-          <div class="text-2xl font-extrabold gold">${money(p.price)} <span class="text-sm font-bold text-[#b0a184]">${rub(p.price)}</span></div>
-          ${p.old_price > p.price ? `<div class="text-xs font-bold text-[#b0a184] line-through">${money(p.old_price)}</div>` : ''}
-          <div class="text-[11px] font-bold text-[#a39274] mt-0.5">${p.stock > 0 ? p.stock + ' ' + t('stock') : t('out')}</div>
-        </div>
-        <div class="flex items-center gap-3">
-          <button onclick="sqty(-1)" class="qty-btn">−</button>
-          <div id="sheetQty" class="w-8 text-center text-lg font-extrabold">1</div>
-          <button onclick="sqty(1)" class="qty-btn">+</button>
-        </div>
-      </div>
-      <button onclick="addToCartSheet()" class="btn-gold w-full h-14 rounded-2xl mt-5 text-[15px] tracking-wide">${t('toCart')}</button>
+  const p = S.prods.find(x=>x.id===pid); if (!p) return;
+  const d = p.old_price_usd && p.old_price_usd > p.price_usd ? Math.round((1-p.price_usd/p.old_price_usd)*100) : 0;
+  $('psBody').innerHTML = `
+    <div style="border-radius:18px;overflow:hidden"><img id="psImg" src="${p.image_url||PH}" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block"></div>
+    <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">${(p.badges||[]).map(badgeHtml).join('')}</div>
+    <h2 class="sh-title" style="margin-top:10px">${pname(p)}</h2>
+    <div style="color:var(--muted);font-weight:700;font-size:13px;margin-top:2px">${p.weight||''}</div>
+    <div class="price-row" style="margin-top:8px"><span class="price-gold" style="font-size:24px">${money(p.price_usd)}</span>${d?`<span class="oldp">${money(p.old_price_usd)}</span><span class="disc" style="font-size:13px">−${d}%</span>`:''}</div>
+    <p style="margin-top:12px;font-weight:600;line-height:1.6">${pdesc(p)||''}</p>
+    ${p.perishable?`<div style="margin-top:10px;padding:11px 13px;border:1px solid var(--gold1);border-radius:13px;font-size:12.5px;font-weight:700;color:var(--gold2)">⚠️ ${t('perish')}</div>`:''}
+    <div class="dprog" style="margin-top:14px">🚚 ${t('delivery')}: ${S.country?S.country.days:''}</div>
+    <div style="display:flex;gap:12px;margin-top:16px;align-items:center">
+      <div class="qty"><button onclick="psQty(-1)">−</button><span id="psQty">1</span><button onclick="psQty(1)">+</button></div>
+      <button class="btn btn-gold" style="flex:1" onclick="addToCart(${p.id}, Number($('psQty').textContent))">${t('add')}</button>
     </div>`;
-  document.getElementById('sheet').classList.remove('hidden');
+  openSheet('ps');
 }
-let sheetQty = 1;
-function sqty(d) { haptic(); sheetQty = Math.max(1, sheetQty + d); document.getElementById('sheetQty').textContent = sheetQty; }
-function closeSheet() { document.getElementById('sheet').classList.add('hidden'); }
-function addToCartSheet() { addToCart(currentProduct.id, sheetQty); closeSheet(); }
+let psQ = 1;
+function psQty(n){ psQ = Math.max(1, psQ + n); $('psQty').textContent = psQ; haptic(); }
+function openSheet(id){ $(id+'Bg').classList.remove('hidden'); requestAnimationFrame(()=>$(id).classList.add('open')); }
+function closeSheet(id){ $(id).classList.remove('open'); setTimeout(()=>$((id)+'Bg').classList.add('hidden'), 280); }
 
-// ---------- CART ----------
-async function addToCart(pid, qty = 1) {
-  haptic();
-  const cart = LS.get('cart', []);
-  const existing = cart.find(i => i.id === pid);
-  if (existing) existing.qty += qty; else cart.push({ id: pid, qty });
-  LS.set('cart', cart);
-  toast(t('inCart')); refreshCartBadge();
+// ---------- корзина ----------
+function addToCart(pid, qty){
+  if (!S.settings.shop_open && S.settings.shop_open!==undefined) { toast('Магазин временно закрыт'); return; }
+  haptic(); S.cart[pid] = (S.cart[pid]||0) + qty; save(); updateCartBadge(); toast(t('added'));
+  closeSheet('ps'); openCart();
 }
-function refreshCartBadge() {
-  const n = LS.get('cart', []).reduce((s, i) => s + i.qty, 0);
-  const b = document.getElementById('cartBadge');
-  b.textContent = n; b.classList.toggle('hidden', n === 0);
+function setQty(pid, n){ if (n<=0) delete S.cart[pid]; else S.cart[pid]=n; save(); updateCartBadge(); renderCart(); }
+function cartItems(){ return Object.entries(S.cart).map(([id,qty])=>({ p:S.prods.find(x=>x.id==id), qty })).filter(x=>x.p); }
+function cartTotal(){ return cartItems().reduce((s,x)=>s+x.p.price_usd*x.qty,0); }
+function updateCartBadge(){ const n = Object.values(S.cart).reduce((a,b)=>a+b,0); const el=$('cartN'); el.textContent=n; el.classList.toggle('hidden', n===0); }
+function toggleFav(pid){ haptic(); const i=S.fav.indexOf(pid); if (i>=0) S.fav.splice(i,1); else S.fav.push(pid); save(); renderSections(); if(!$('ps').classList.contains('open')){}else openProduct(pid); }
+function openCart(){
+  if (!Object.keys(S.cart).length){ toast(t('cartEmpty')); return; }
+  renderCart(); openSheet('cart');
 }
-function openCart() {
-  haptic();
-  showOverlay(t('cart')); renderCart();
-}
-async function renderCart() {
-  const body = document.getElementById('overlayBody');
-  const items = LS.get('cart', [])
-    .map(ci => { const p = allProducts.find(x => x.id === ci.id); return p ? { id: ci.id, qty: ci.qty, product: p } : null; })
-    .filter(Boolean);
-  if (!items.length) { body.innerHTML = `<div class="text-center text-sm font-semibold text-[#a39274] py-20">${t('emptyCart')}</div>`; return; }
-  const total = items.reduce((s, i) => s + i.product.price * i.qty, 0);
-  body.innerHTML = items.map(i => `
-    <div class="card p-3 mb-2 flex items-center gap-3 fade-in">
-      ${imgBlock(i.product, 'w-16 h-16 rounded-xl object-cover')}
-      <div class="flex-1">
-        <div class="font-extrabold text-[14px] leading-tight">${pname(i.product)}</div>
-        <div class="text-[13px] font-bold gold mt-0.5">${money(i.product.price)} <span class="text-[11px] font-bold text-[#b0a184]">${rub(i.product.price)}</span></div>
+function renderCart(){
+  const items = cartItems(); const sub = cartTotal();
+  const c = S.country || {}; const free = c.free_from_usd || Infinity;
+  const shipping = sub >= free ? 0 : (c.courier_usd||0);
+  $('cartBody').innerHTML = `
+    <h2 class="sh-title">${t('cart')}</h2>
+    ${items.map(x=>`<div class="cline">
+      <img src="${x.p.image_url||PH}"><div style="flex:1">
+        <div style="font-weight:800;font-size:13px">${pname(x.p)}</div>
+        <div class="price-gold" style="font-size:14px;margin-top:2px">${money(x.p.price_usd)}</div>
       </div>
-      <div class="flex items-center gap-2">
-        <button onclick="setQty(${i.id},${i.qty-1})" class="qty-btn">−</button>
-        <div class="w-6 text-center font-extrabold">${i.qty}</div>
-        <button onclick="setQty(${i.id},${i.qty+1})" class="qty-btn">+</button>
-      </div>
-    </div>`).join('') + `
-    <div class="card p-4 mt-4 flex items-center justify-between">
-      <span class="font-extrabold">${t('total')}</span>
-      <span class="text-xl font-extrabold gold">${money(total)} <span class="text-xs font-bold text-[#b0a184]">${rub(total)}</span></span>
-    </div>
-    <button onclick="openCheckout()" class="btn-gold w-full h-14 rounded-2xl mt-4 font-extrabold tracking-wide">${t('checkout')}</button>`;
+      <div class="qty"><button onclick="setQty(${x.p.id},${x.qty-1})">−</button><span>${x.qty}</span><button onclick="setQty(${x.p.id},${x.qty+1})">+</button></div>
+    </div>`).join('')}
+    <div class="dprog">${sub<free? t('freeFrom2').replace('{n}', usd(free-sub)) : '✨ ' + t('free')}
+      <div class="dbar"><div style="width:${Math.min(100, sub/free*100)}%"></div></div></div>
+    <div class="field"><label>${t('promo')}</label><div style="display:flex;gap:8px"><input id="promoIn" style="flex:1"><button class="btn btn-ghost btn-sm" onclick="S.promo=$('promoIn').value;toast('✓')">${t('apply')}</button></div></div>
+    <div class="field"><label>${t('giftCard')}</label><textarea id="giftCard" rows="2" placeholder="…"></textarea></div>
+    <label class="opt" onclick="this.classList.toggle('on');S.giftPack=this.classList.contains('on')"><span>${t('giftPack')}</span><span class="radio"></span></label>
+    <label class="opt" onclick="this.classList.toggle('on');S.anon=this.classList.contains('on')"><span>${t('anon')}</span><span class="radio"></span></label>
+    <div style="display:flex;justify-content:space-between;font-weight:800;margin-top:16px"><span>${t('total')}</span><span class="price-gold" style="font-size:19px">${money(sub + (S.giftPack?3:0))}</span></div>
+    <button class="btn btn-gold" style="margin-top:14px" onclick="startCheckout()">${t('checkout')}</button>`;
 }
-async function setQty(pid, qty) {
-  haptic();
-  let cart = LS.get('cart', []);
-  if (qty <= 0) cart = cart.filter(i => i.id !== pid);
-  else { const e = cart.find(i => i.id === pid); if (e) e.qty = qty; }
-  LS.set('cart', cart);
-  refreshCartBadge(); renderCart();
+
+// ---------- чекаут 3 шага ----------
+function startCheckout(){
+  closeSheet('cart');
+  S.checkout = { step:1, name:(tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user&&tg.initDataUnsafe.user.first_name)||'', phone:'', comment:'', city:'', address:'', delivery:'courier', payment:'cash', agree:false, idem:crypto.randomUUID() };
+  openOvl(t('checkout'), renderCheckoutStep());
 }
-function openCheckout() {
-  showOverlay(t('checkout'));
-  document.getElementById('overlayBody').innerHTML = `
-    <div class="card p-4 mb-3 fade-in">
-      <div class="text-xs font-extrabold uppercase tracking-widest text-[#a39274] mb-2">${t('address')}</div>
-      <input id="ckAddr" class="w-full font-semibold text-[15px]">
-      <div class="text-xs font-extrabold uppercase tracking-widest text-[#a39274] mt-4 mb-2">${t('phone')}</div>
-      <input id="ckPhone" class="w-full font-semibold text-[15px]" value="${(USER && USER.phone) || ''}" placeholder="+998">
-    </div>
-    <div class="card p-4 mb-3">
-      <div class="text-xs font-extrabold uppercase tracking-widest text-[#a39274] mb-2">${t('comment')}</div>
-      <input id="ckComment" class="w-full font-semibold text-[15px]">
-    </div>
-    <div class="card p-4 mb-3">
-      <div class="text-xs font-extrabold uppercase tracking-widest text-[#a39274] mb-2">${t('payment')}</div>
-      ${['cash','card','click','payme'].map((m, idx) => `
-        <label class="flex items-center gap-3 py-2">
-          <input type="radio" name="pay" value="${m}" ${idx===0?'checked':''} style="accent-color:#b08d3f">
-          <span class="font-bold text-[14px]">${t('pay' + m[0].toUpperCase() + m.slice(1))}</span>
-        </label>`).join('')}
-    </div>
-    <button onclick="submitOrder()" class="btn-gold w-full h-14 rounded-2xl font-extrabold tracking-wide">${t('confirm')}</button>`;
+function renderCheckoutStep(){
+  const c = S.country || {}; const ck = S.checkout;
+  const steps = `<div class="steps">${[1,2,3].map(i=>`<div class="stepdot ${ck.step>=i?'on':''}"></div>`).join('')}</div>`;
+  let html = steps;
+  if (ck.step===1){
+    html += `<h3 class="ovl-title" style="font-size:20px">${t('step1')}</h3>
+      <div class="field"><label>${t('name')}</label><input id="ckName" value="${ck.name}"></div>
+      <div class="field"><label>${t('phone')}</label><input id="ckPhone" value="${ck.phone}" inputmode="tel" placeholder="+7 900 000-00-00"></div>
+      ${tg&&tg.requestContact?`<button class="btn btn-ghost" style="margin-top:11px" onclick="sharePhone()">${t('sharePhone')}</button>`:''}
+      <div class="field"><label>${t('comment')}</label><textarea id="ckComment" rows="2">${ck.comment}</textarea></div>
+      <button class="btn btn-gold" style="margin-top:16px" onclick="ckStep(2)">Далее →</button>`;
+  } else if (ck.step===2){
+    const courier = c.courier_usd||0, postal = c.postal_usd||0, free = c.free_from_usd||Infinity;
+    const sub = cartTotal() + (S.giftPack?3:0);
+    html += `<h3 class="ovl-title" style="font-size:20px">${t('step2')}</h3>
+      <div class="field" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="closeOvl();openCountrySheet()"><label style="margin:0">${t('country')}</label><div style="font-weight:800">${c.flag||''} ${c.name_ru||''} · <span style="color:var(--gold2)">изменить</span></div></div>
+      <div class="field"><label>${t('city')}</label><input id="ckCity" value="${ck.city}"></div>
+      <div class="field"><label>${t('address')}</label><input id="ckAddr" value="${ck.address}"></div>
+      <div class="opt ${ck.delivery==='courier'?'on':''}" onclick="ck.delivery='courier';renderCheckoutStep()"><div><div style="font-weight:800">${t('courier')}</div><div style="font-size:12px;color:var(--muted)">${c.days||''}</div></div><div style="font-weight:800" class="price-gold">${sub>=free?t('free'):money(courier)}</div><span class="radio"></span></div>
+      <div class="opt ${ck.delivery==='postal'?'on':''}" onclick="ck.delivery='postal';renderCheckoutStep()"><div><div style="font-weight:800">${t('postal')}</div><div style="font-size:12px;color:var(--muted)">${t('delivery')} · трек-номер</div></div><div style="font-weight:800" class="price-gold">${sub>=free?t('free'):money(postal)}</div><span class="radio"></span></div>
+      <div style="display:flex;gap:10px;margin-top:16px"><button class="btn btn-ghost" style="flex:0 0 90px" onclick="ckStep(1)">←</button><button class="btn btn-gold" style="flex:1" onclick="ckStep(3)">Далее →</button></div>`;
+  } else {
+    const pays = (S.settings.payments||[]).filter(p=>p.active!==false && (S.country?p.countries.includes(S.country.code):true));
+    const pm = pays.find(p=>p.id===ck.payment) || pays[0];
+    if (pm) ck.payment = pm.id;
+    html += `<h3 class="ovl-title" style="font-size:20px">${t('step3')}</h3>
+      ${pays.map(p=>`<div class="opt ${ck.payment===p.id?'on':''}" onclick="ck.payment='${p.id}';renderCheckoutStep()"><span style="font-weight:800">${p.title_ru}</span><span class="radio"></span></div>`).join('')}
+      ${pm?`<div class="dprog" style="margin-top:14px">${pm.instr_ru||''}</div>`:''}
+      <label class="opt" onclick="event.preventDefault();this.classList.toggle('on');S.checkout.agree=this.classList.contains('on');updateMainBtn()"><span style="font-size:13px">${t('agree')}</span><span class="radio"></span></label>
+      <div style="display:flex;justify-content:space-between;font-weight:800;margin-top:18px;padding-top:14px;border-top:1px solid var(--hairline)"><span>${t('total')}</span><span class="price-gold" style="font-size:19px">${money(checkoutTotal())}</span></div>`;
+    if (tg && tg.MainButton){ tg.MainButton.setText(t('confirm')); updateMainBtn(); }
+  }
+  return html;
 }
-async function submitOrder() {
-  const addr = document.getElementById('ckAddr').value.trim();
-  const phone = document.getElementById('ckPhone').value.trim();
-  if (!addr || !phone) { toast(t('address') + ' · ' + t('phone')); return; }
-  const pay = document.querySelector('input[name=pay]:checked').value;
-  if (DEMO) { toast(demoMsg()); return; }
+function checkoutTotal(){
+  const c=S.country||{}; const sub=cartTotal()+(S.giftPack?3:0);
+  const ship = sub >= (c.free_from_usd||Infinity) ? 0 : (S.checkout.delivery==='postal'?c.postal_usd:c.courier_usd)||0;
+  return sub + ship;
+}
+function updateMainBtn(){ if (tg && tg.MainButton){ if (S.checkout && S.checkout.step===3 && S.checkout.agree) { tg.MainButton.show(); } else tg.MainButton.hide(); } }
+function sharePhone(){ if (tg) tg.requestContact((ok, d)=>{ if (ok && d && d.contact && d.contact.phone_number){ S.checkout.phone = d.contact.phone_number; renderOvl(); } }); }
+function ckStep(n){
+  const ck=S.checkout;
+  if (n===2){ ck.name=$('ckName')?$('ckName').value:ck.name; ck.phone=$('ckPhone')?$('ckPhone').value:ck.phone; ck.comment=$('ckComment')?$('ckComment').value:ck.comment;
+    if (!ck.name.trim() || !ck.phone.trim()) { toast(t('name')+' / '+t('phone')); return; } }
+  if (n===3){ ck.city=$('ckCity')?$('ckCity').value:ck.city; ck.address=$('ckAddr')?$('ckAddr').value:ck.address;
+    if (!ck.city.trim() || !ck.address.trim()) { toast(t('city')+' / '+t('address')); return; } }
+  ck.step=n; renderOvl(); window.scrollTo(0,0);
+}
+function mainConfirm(){ if (S.checkout && S.checkout.step===3 && S.checkout.agree) submitOrder(); }
+
+async function submitOrder(){
+  if (DEMO) { toast('Откройте магазин из Telegram'); return; }
+  const ck = S.checkout;
+  if (!ck.agree) { toast(t('agree')); return; }
+  if (tg && tg.MainButton) { tg.MainButton.showProgress(true); }
   try {
-    await api('/order', { method:'POST', body: JSON.stringify({
-      initData: tg.initData,
-      items: LS.get('cart', []),
-      address: addr, phone, comment: document.getElementById('ckComment').value.trim(), payment_method: pay }) });
-    LS.set('cart', []); refreshCartBadge(); loadCatalog();
-    showOverlay('SAHAR');
-    document.getElementById('overlayBody').innerHTML = `
-      <div class="text-center py-16 fade-in">
-        <div class="display text-4xl font-extrabold gold tracking-[0.15em]">SAHAR</div>
-        <div class="text-2xl font-extrabold mt-6">${t('orderDone')}</div>
-        <div class="text-sm font-semibold text-[#7a6a4f] mt-2">${t('orderDoneSub')}</div>
-        <button onclick="closeOverlay();nav('home')" class="btn-gold px-8 py-4 rounded-2xl mt-8 font-extrabold">${t('navShop')}</button>
+    const items = cartItems().map(x=>({ id:x.p.id, qty:x.qty }));
+    const r = await api('/order', { items, name:ck.name, phone:ck.phone, comment:ck.comment, country:S.country.code, city:ck.city, address:ck.address, delivery:ck.delivery, payment_method:ck.payment, promo:S.promo||'', gift:{ premium_pack: !!S.giftPack, card: ($('giftCard')?$('giftCard').value:''), anonymous: !!S.anon }, idem_key: ck.idem });
+    if (tg && tg.MainButton) tg.MainButton.hideProgress();
+    if (r.ok){
+      S.cart = {}; S.promo=''; S.giftPack=false; S.anon=false; save(); updateCartBadge();
+      ck.idem = crypto.randomUUID();
+      $('ovlBody').innerHTML = `<div class="success-wrap">
+        <div class="check-gold"><svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+        <div class="onum">№${r.order_id}</div>
+        <div class="serif" style="font-size:19px;margin-top:6px">${t('successT')}</div>
+        <p style="color:var(--muted);font-weight:600;margin-top:6px">${t('successS')}</p>
+        <button class="btn btn-gold" style="margin-top:22px" onclick="openOrders()">${t('myOrders')}</button>
+        <button class="btn btn-ghost" style="margin-top:10px" onclick="closeOvl();S.view='chat';renderNav();openChatView()">${t('writeOwner')}</button>
       </div>`;
-  } catch (e) { toast(e.message); }
+      $('ovlBackT').textContent = t('shop');
+      window.scrollTo(0,0);
+    } else { toast(r.error==='shop_closed'?'Магазин временно закрыт':t('net')); }
+  } catch(e){ if (tg && tg.MainButton) tg.MainButton.hideProgress(); toast(e && e.message==='bad_country'?t('country'):t('net')); }
 }
 
-// ---------- ORDERS ----------
-const statusLabel = s => t('status' + s[0].toUpperCase() + s.slice(1));
-async function openOrders() {
-  if (DEMO) { toast(demoMsg()); return; }
-  showOverlay(t('myOrders'));
+// ---------- overlay-экран ----------
+function openOvl(title, html){ $('ovlBackT').textContent = t('shop'); $('ovlBody').innerHTML = `<h2 class="ovl-title" style="display:none">${title}</h2>` + html; $('ovlGeneric').classList.add('open'); }
+function renderOvl(){ $('ovlBody').innerHTML = renderCheckoutStep(); updateMainBtn(); }
+function closeOvl(){
+  $('ovlGeneric').classList.remove('open');
+  if (tg && tg.MainButton) tg.MainButton.hide();
+  if (S.chatTimer){ clearInterval(S.chatTimer); S.chatTimer=null; }
+  if (S.view==='chat'||S.view==='profile'){ S.view='shop'; renderNav(); renderSections(); }
+}
+
+// ---------- мои заказы ----------
+async function openOrders(){
+  $('ovlBackT').textContent = t('profile');
+  $('ovlBody').innerHTML = '<div class="empty">' + t('net') + '</div>';
+  $('ovlGeneric').classList.add('open');
   try {
-  const orders = await api('/my/orders?initData=' + encodeURIComponent(tg.initData));
-  const body = document.getElementById('overlayBody');
-  if (!orders.length) { body.innerHTML = `<div class="text-center text-sm font-semibold text-[#a39274] py-20">${t('noOrders')}</div>`; return; }
-  body.innerHTML = orders.map(o => `
-    <div class="card p-4 mb-3 fade-in">
-      <div class="flex items-center justify-between">
-        <span class="font-extrabold">#${o.id}</span>
-        <span class="text-[11px] font-extrabold px-2 py-1 rounded-md ${o.status==='done'?'bg-[#e8f3e6] text-[#3d7a33]':o.status==='cancelled'?'bg-[#f9e9e7] text-[#a3402f]':'bg-[#f5efe3] text-[#8b7a5c]'}">${statusLabel(o.status)}</span>
-      </div>
-      <div class="text-xs font-semibold text-[#8b7a5c] mt-1">${(o.created_at||'').slice(0,16)}</div>
-      <div class="mt-2 text-[13px] font-semibold leading-relaxed">${o.items.map(i => `• ${LANG==='uz'?(i.name_uz||i.name_ru):i.name_ru} ×${i.qty}`).join('<br>')}</div>
-      <div class="flex justify-between mt-3 pt-3 border-t border-[#f0e9dd]">
-        <span class="font-bold text-[13px]">${t('total')}</span>
-        <span class="font-extrabold gold">${money(o.total)}</span>
-      </div>
-    </div>`).join('');
-  } catch (e) { toast(e.message); }
+    const orders = await api('/my/orders?initData=' + encodeURIComponent(tg.initData));
+    const stl = s => ({new:'st-new',awaiting_payment:'st-awaiting_payment',paid:'st-paid',confirmed:'st-paid',packing:'st-packing',shipping:'st-shipping',delivered:'st-delivered',cancelled:'st-cancelled',refunded:'st-refunded'}[s]||'st-new');
+    const str = s => ({new:'Новый',awaiting_payment:'Ожидает оплату',paid:'Оплачен',confirmed:'Подтверждён',packing:'Собирается',shipping:'В доставке',delivered:'Доставлен',cancelled:'Отменён',refunded:'Возврат'}[s]||s);
+    $('ovlBody').innerHTML = `<h2 class="ovl-title">${t('myOrders')}</h2>` + (orders.length ? orders.map(o=>`
+      <div class="card anim" style="margin-top:12px;padding:15px;cursor:default">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="serif" style="font-weight:900;font-size:17px">#${o.id}</span>
+          <span class="st-pill ${stl(o.status)}">${str(o.status)}</span>
+        </div>
+        <div style="font-size:11.5px;color:var(--muted);font-weight:700;margin-top:4px">${(o.created_at||'').slice(0,16).replace('T',' ')}</div>
+        <div style="font-size:13px;font-weight:600;margin-top:8px">${o.items.map(i=>`• ${i.name_ru} ×${i.qty}`).join('<br>')}</div>
+        ${o.tracking?`<div class="tl">🔖 Трек: ${o.tracking}</div>`:''}
+        <div class="tl">${(o.history||[]).map(h=>`<div>· ${str(h.status)} — ${(h.at||'').slice(5,16).replace('T',' ')}</div>`).join('')}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px"><span style="font-weight:800">${t('total')}</span><span class="price-gold" style="font-size:17px">${o.total_local}</span></div>
+        <button class="btn btn-ghost" style="margin-top:10px;font-size:13px" onclick="repeatOrder(${o.id})">${t('repeat')}</button>
+      </div>`).join('') : `<div class="empty"><div class="e-title">${t('noOrders')}</div></div>`);
+  } catch(e){ toast(t('net')); }
+}
+function repeatOrder(id){
+  api('/my/orders?initData=' + encodeURIComponent(tg.initData)).then(orders=>{
+    const o = orders.find(x=>x.id===id); if (!o) return;
+    o.items.forEach(i=>{ S.cart[i.id]=(S.cart[i.id]||0)+i.qty; });
+    save(); updateCartBadge(); closeOvl(); toast(t('added')); openCart();
+  }).catch(()=>toast(t('net')));
 }
 
-// ---------- CHAT ----------
-async function loadChat() {
-  if (DEMO) { document.getElementById('chatBox').innerHTML = `<div class="text-center text-sm font-semibold text-[#a39274] py-10">${demoMsg()}</div>`; return; }
+// ---------- страна ----------
+function openCountrySheet(){
+  $('csBody').innerHTML = `<h2 class="sh-title">${t('country')}</h2><div style="color:var(--muted);font-weight:600;font-size:13px;margin-top:4px">Валюта, доставка и оплата подстроятся автоматически</div>` +
+    (S.settings.countries||[]).map(c=>`<div class="opt ${S.country&&S.country.code===c.code?'on':''}" onclick="pickCountry('${c.code}')">
+      <div style="display:flex;align-items:center;gap:10px"><span style="font-size:22px">${c.flag}</span>
+      <div><div style="font-weight:800">${S.lang==='en'?c.name_en:c.name_ru}</div><div style="font-size:11.5px;color:var(--muted)">${{USD:'$',RUB:'₽',KZT:'₸',UZS:'сўм',BYN:'Br',KGS:'с',AMD:'֏',GEL:'₾',AZN:'₼',TJS:'SM',MDL:'L'}[c.currency]} · ${c.days}</div></div></div>
+      <span class="radio"></span></div>`).join('');
+  openSheet('cs');
+}
+function pickCountry(code){
+  const c = S.settings.countries.find(x=>x.code===code); if (!c) return;
+  S.country = c; save(); renderCountry(); closeSheet('cs'); haptic();
+  if (S.checkout && $('ovlGeneric').classList.contains('open')) renderOvl();
+  toast(c.flag + ' ' + (S.lang==='en'?c.name_en:c.name_ru));
+  renderSections();
+}
+
+// ---------- чат ----------
+function openChatView(){
+  S.view='chat'; renderNav();
+  openOvl('', `<h2 class="ovl-title">${t('chat')}</h2>
+    <div class="qr-chips" style="margin-top:10px">
+      <button class="qr-chip" onclick="quickChat('Хочу подарочный набор')">🎁 Подарочный набор</button>
+      <button class="qr-chip" onclick="quickChat('Узнать статус заказа')">📦 Статус заказа</button>
+      <button class="qr-chip" onclick="quickChat('Нужна консультация')">💬 Консультация</button>
+    </div>
+    <div id="chatBox"><div class="empty" style="padding:30px 10px">${t('chatSub')}</div></div>
+    <div class="chat-input">
+      <button class="icon-btn" style="width:46px;height:46px;flex:none" onclick="$('photoFile').click()">🖼</button>
+      <input id="chatIn" placeholder="…" onkeydown="if(event.key==='Enter')sendChat()">
+      <button onclick="sendChat()">➤</button>
+    </div>`);
+  loadChat();
+  S.chatTimer = setInterval(loadChat, 8000);
+}
+function quickChat(text){ $('chatIn').value = text; sendChat(); }
+async function loadChat(){
+  if (DEMO) return;
   try {
-  const msgs = await api('/support?initData=' + encodeURIComponent(tg.initData));
-  document.getElementById('chatBox').innerHTML = msgs.map(m => `
-    <div class="max-w-[80%] ${m.from_admin ? 'self-end bg-[#231a10] text-white' : 'self-start card'} px-4 py-2.5 rounded-2xl text-[14px] font-semibold fade-in">${m.text.replace(/</g,'&lt;')}</div>`).join('') ||
-    `<div class="text-center text-sm font-semibold text-[#a39274] py-10">${t('chatSub')}</div>`;
-  } catch (e) { toast(e.message); }
+    const msgs = await api('/support?initData=' + encodeURIComponent(tg.initData));
+    const box = $('chatBox'); if (!box) return;
+    box.innerHTML = msgs.map(m=>`<div class="bub ${m.from_admin?'them':'me'}">${m.text?m.text:''}${m.photo_url?`<img src="${m.photo_url}" onclick="window.open('${m.photo_url}')">`:''}<div class="bt">${(m.at||'').slice(11,16)}</div></div>`).join('') || `<div class="empty" style="padding:30px 10px">${t('chatSub')}</div>`;
+    box.scrollTop = box.scrollHeight;
+  } catch(e){}
 }
-async function sendChat() {
-  if (DEMO) { toast(demoMsg()); return; }
-  const el = document.getElementById('chatInput');
-  const text = el.value.trim();
-  if (!text) return;
-  el.value = ''; haptic();
-  await api('/support', { method:'POST', body: JSON.stringify({ initData: tg.initData, text }) });
-  await loadChat();
+async function sendChat(){
+  const inp = $('chatIn'); const text = inp.value.trim(); if (!text && !S.pendingPhoto) return;
+  if (DEMO){ toast('Откройте магазин из Telegram'); return; }
+  inp.value='';
+  try { await api('/support', { text: text || '📷', photo_url: S.pendingPhoto || '' }); S.pendingPhoto=''; loadChat(); haptic(); } catch(e){ toast(t('net')); }
 }
-
-// ---------- NAV ----------
-function nav(s) {
-  haptic();
-  document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
-  document.getElementById('screen-' + s).classList.add('active');
-  document.querySelectorAll('.navbtn').forEach(b => {
-    b.classList.toggle('text-[#b08d3f]', b.dataset.s === s);
-    b.classList.toggle('text-[#707070]', b.dataset.s !== s);
+async function onPhotoPicked(ev){
+  const f = ev.target.files[0]; if (!f) return;
+  try {
+    const b64 = await compress(f);
+    const r = await api('/upload', { b64: b64.split(',')[1], mime: 'image/jpeg' });
+    S.pendingPhoto = r.url;
+    toast('Фото готово — нажмите ➤');
+  } catch(e){ toast(t('net')); }
+  ev.target.value='';
+}
+function compress(file){
+  return new Promise((res, rej)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const c = document.createElement('canvas');
+      const scale = Math.min(1, 900 / Math.max(img.width, img.height));
+      c.width = img.width * scale; c.height = img.height * scale;
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      res(c.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = rej;
+    img.src = URL.createObjectURL(file);
   });
-  document.getElementById('searchWrap').classList.toggle('hidden', s !== 'home');
-  window.scrollTo(0, 0);
-  if (s === 'fav') renderFav();
-  if (s === 'chat') { loadChat(); clearInterval(chatTimer); chatTimer = setInterval(loadChat, 8000); }
-  else clearInterval(chatTimer);
 }
-function showOverlay(title) {
-  document.getElementById('overlayTitle').textContent = title;
-  document.getElementById('overlay').classList.remove('hidden');
-  document.body.style.overflow = 'hidden';
-}
-function closeOverlay() {
-  document.getElementById('overlay').classList.add('hidden');
-  document.body.style.overflow = '';
-}
-document.querySelectorAll('.navbtn').forEach(b => { b.classList.add('text-[#707070]'); });
 
-init();
+// ---------- профиль ----------
+function openProfile(){
+  S.view='profile'; renderNav();
+  const u = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) || {};
+  const themeNames = {auto:t('themeAuto'),light:t('themeLight'),dark:t('themeDark')};
+  openOvl('', `
+    <div style="display:flex;align-items:center;gap:14px;margin-top:4px">
+      <div style="width:58px;height:58px;border-radius:18px;background:linear-gradient(120deg,var(--gold1),var(--gold2));display:flex;align-items:center;justify-content:center;font-family:'Playfair Display';font-weight:900;font-size:26px;color:#fff">${(u.first_name||'S')[0]}</div>
+      <div><div class="serif" style="font-size:20px;font-weight:700">${u.first_name||'Гость'}</div><div style="font-size:12.5px;color:var(--muted);font-weight:700">${t('tid')}: ${u.id||'—'}</div></div>
+    </div>
+    <div class="prow" onclick="openOrders()"><span class="pl">📦 ${t('myOrders')}</span><span class="pv">→</span></div>
+    <div class="prow" onclick="openCountrySheet()"><span class="pl">🌍 ${t('country')}</span><span class="pv">${S.country?(S.country.flag+' '+(S.lang==='en'?S.country.name_en:S.country.name_ru)):'—'}</span></div>
+    <div class="prow" onclick="cycleLang()"><span class="pl">🌐 ${t('lang')}</span><span class="pv">${{ru:'Русский',en:'English',uz:'O\'zbek'}[S.lang]||S.lang}</span></div>
+    <div class="prow" onclick="cycleTheme()"><span class="pl">🎨 ${t('theme')}</span><span class="pv">${themeNames[S.theme||'auto']}</span></div>
+    <div class="prow" onclick="openChatView()"><span class="pl">💬 ${t('chat')}</span><span class="pv">→</span></div>
+    <div class="prow" style="cursor:default"><span class="pl">🤍 SAHAR</span><span class="pv">Премиальные сладости · СНГ</span></div>`);
+}
+function cycleLang(){ const order=['ru','en','uz']; S.lang = order[(order.indexOf(S.lang)+1)%3]; localStorage.setItem('sahar_lang',S.lang); save(); applyLang(); openProfile(); renderNav(); renderChips(); renderSections(); }
+function cycleTheme(){ S.theme = {auto:'dark',dark:'light',light:'auto'}[S.theme||'auto']; save(); applyTheme(); openProfile(); }
+
+boot();
 </script>
 </body>
 </html>

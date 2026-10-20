@@ -1,0 +1,81 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>E2E v6</title></head><body>
+<pre id="log">E2E v6 running…</pre>
+<script>
+const API='https://sahar-shop.dostonravshanov1006800.workers.dev';
+const QS_OWNER='auth_date=1792474600&query_id=AAtest_owner&user=%7B%22id%22%3A6999767433%2C%22first_name%22%3A%22%5Cu0414%5Cu043e%5Cu0441%5Cu0442%5Cu043e%5Cu043d%22%2C%22username%22%3A%22dostonravshanov%22%2C%22language_code%22%3A%22ru%22%7D&hash=24a6fb1c0d99d06af88360d8142cfbc8e210135076812df2c2800a57d350ba24', QS_CLIENT='auth_date=1792474600&query_id=AAtest_client&user=%7B%22id%22%3A111222333%2C%22first_name%22%3A%22%5Cu0422%5Cu0435%5Cu0441%5Cu0442%5Cu043e%5Cu0432%5Cu044b%5Cu0439%20%5Cu043a%5Cu043b%5Cu0438%5Cu0435%5Cu043d%5Cu0442%22%7D&hash=43d1e6b8a3f008f0be91e4657f815a32c3ea86f2a39cb4e5547e443c6454aafe';
+const out=[]; const log=s=>{out.push(s); document.getElementById('log').textContent=out.join('\n');};
+async function api(path, body){
+  const r = await fetch(API+'/api'+path, body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:undefined);
+  let j=null; try{ j=await r.json(); }catch(e){}
+  return { status:r.status, j };
+}
+(async()=>{
+  try{
+    let r = await api('/ping'); log('1) ping v6: '+(r.j.v===6?'OK v'+r.j.v:'FAIL'));
+    r = await fetch(API+'/api/settings'); const st=(await r.json());
+    log('2) settings: '+((st.countries&&st.countries.length>=10&&st.payments&&st.rates.RUB)?'OK ('+st.countries.length+' стран, '+st.payments.length+' оплат)':'FAIL'));
+    r = await fetch(API+'/api/catalog'); const cat=await r.json();
+    log('3) catalog: '+((cat.products&&cat.products.length>=8&&cat.products[0].price_usd&&cat.banners&&cat.banners.length>=3&&cat.categories&&cat.categories.length>=5)?'OK ('+cat.products.length+' товаров, '+cat.banners.length+' баннеров, USD-цены)':'FAIL '+JSON.stringify(cat).slice(0,120)));
+    r = await api('/verify',{initData:QS_CLIENT}); log('4) verify client: '+((r.j.ok&&r.j.user.id===111222333&&r.j.is_owner===false)?'OK ID '+r.j.user.id:'FAIL '+JSON.stringify(r.j).slice(0,100)));
+    r = await api('/verify',{initData:QS_CLIENT+'&hash=deadbeef'}); log('5) forged initData rejected: '+(r.status===403?'OK 403':'FAIL '+r.status));
+    r = await api('/verify',{initData:QS_OWNER}); log('6) verify owner: '+((r.j.ok&&r.j.is_owner===true)?'OK':'FAIL'));
+    const IDEM='e2e-'+Date.now();
+    const ord={initData:QS_CLIENT,items:[{id:1,qty:2},{id:6,qty:1}],name:'E2E Тест',phone:'+79990001122',comment:'',country:'RU',city:'Москва',address:'Тверская 1',delivery:'courier',payment_method:'card',promo:'E2E50',gift:{premium_pack:true},idem_key:IDEM};
+    r = await api('/order',ord); log('7) order RU (+промокод, если активен): '+((r.j.ok&&r.j.order_id)?'OK #'+r.j.order_id:'FAIL '+JSON.stringify(r.j).slice(0,120)));
+    r = await api('/order',ord); log('8) idempotency (повтор): '+((r.j.ok&&r.j.duplicate)?'OK дубль не создан':'FAIL '+JSON.stringify(r.j).slice(0,80)));
+    // промокод E2E50 создаём заранее нет — пропустим проверку скидки, создадим промо через админку:
+    r = await api('/admin/promo',{initData:QS_OWNER,promo:{code:'WELCOME10',percent:10}});
+    r = await api('/order',{...ord,idem_key:'e2e2-'+Date.now(),promo:'WELCOME10'});
+    log('9) промокод WELCOME10 в заказе: '+(r.j.ok?'OK #'+r.j.order_id:'FAIL'));
+    // perishable + postal должен быть отклонён
+    r = await api('/order',{...ord,idem_key:'e2e3-'+Date.now(),items:[{id:2,qty:1}],delivery:'postal'});
+    log('10) скоропорт+почта отклонён: '+(r.j.error==='perishable_courier'?'OK':'FAIL '+JSON.stringify(r.j).slice(0,80)));
+    r = await api('/my/orders?initData='+encodeURIComponent(QS_CLIENT)); const my=await r.json();
+    const mine = Array.isArray(my)?my:[];
+    log('11) my/orders (>=2): '+(mine.length>=2?'OK '+mine.length+' заказов':'FAIL'));
+    r = await api('/support',{initData:QS_CLIENT,text:'E2E test message v6'}); log('12) support: '+(r.j.ok?'OK':'FAIL'));
+    r = await api('/admin/stats',{initData:QS_OWNER});
+    log('13) admin stats: '+((r.j.orders&&r.j.revenue_usd!==undefined)?'OK (заказов '+r.j.orders+', выручка $'+r.j.revenue_usd+')':'FAIL '+JSON.stringify(r.j).slice(0,100)));
+    r = await api('/admin/orders',{initData:QS_OWNER,query:'E2E'});
+    log('14) admin orders search "E2E": '+((Array.isArray(r.j)?r.j.length:0)>=2?'OK найдено '+r.j.length:'FAIL'));
+    const oid = Array.isArray(r.j)&&r.j[0]?r.j[0].id:0;
+    r = await api('/admin/order',{initData:QS_OWNER,id:oid,status:'confirmed'}); log('15) статус → confirmed: '+(r.j.ok?'OK':'FAIL'));
+    r = await api('/admin/order',{initData:QS_OWNER,id:oid,tracking:'AB123456'}); log('16) трек-номер: '+(r.j.ok?'OK':'FAIL'));
+    r = await api('/admin/product',{initData:QS_OWNER,product:{name_ru:'E2E v6 товар',price_usd:11,stock:5,cat:1}});
+    r = await api('/admin/products',{initData:QS_OWNER}); const prods=r.j.products||[];
+    const np = prods.find(p=>p.name_ru==='E2E v6 товар');
+    log('17) продукт создан: '+(np?'OK id '+np.id:'FAIL'));
+    if(np){
+      r = await api('/admin/product/duplicate',{initData:QS_OWNER,id:np.id});
+      r = await api('/admin/product',{initData:QS_OWNER,product:{id:np.id,price_usd:12.5}});
+      r = await api('/admin/products',{initData:QS_OWNER});
+      const dup=(r.j.products||[]).find(p=>p.name_ru==='E2E v6 товар (копия)');
+      log('18) дублирование+редактирование: '+((r.j.products||[]).find(p=>p.id===np.id&&p.price_usd===12.5)?'OK ':'FAIL')+(dup?'(копия ок)':''));
+      if(dup){ r = await api('/admin/product/delete',{initData:QS_OWNER,id:dup.id}); }
+      r = await api('/admin/product/delete',{initData:QS_OWNER,id:np.id});
+      r = await api('/admin/products',{initData:QS_OWNER});
+      log('19) удаление: '+(!(r.j.products||[]).find(p=>p.id===np.id)?'OK удалён безвозвратно':'FAIL'));
+    }
+    r = await api('/admin/clients',{initData:QS_OWNER});
+    log('20) клиенты: '+(Array.isArray(r.j)&&r.j.length?'OK '+r.j.length:'FAIL'));
+    r = await api('/admin/chat',{initData:QS_OWNER,tid:111222333});
+    log('21) admin chat thread: '+(Array.isArray(r.j)&&r.j.some(m=>m.text==='E2E test message v6')?'OK, прочитано':'FAIL'));
+    r = await api('/admin/chat/send',{initData:QS_OWNER,tid:111222333,text:'E2E ответ владельца'});
+    r = await api('/admin/chat',{initData:QS_OWNER,tid:111222333});
+    log('22) ответ владельца в треде: '+(Array.isArray(r.j)&&r.j.some(m=>m.from_admin&&m.text==='E2E ответ владельца')?'OK':'FAIL'));
+    r = await api('/admin/banner',{initData:QS_OWNER,banner:{title_ru:'E2E banner',image_url:'https://x.test/1.jpg'}});
+    r = await fetch(API+'/api/catalog'); const cat2=await r.json();
+    const bn = (cat2.banners||[]).find(b=>b.title_ru==='E2E banner');
+    log('23) баннер создан и в каталоге: '+(bn?'OK id '+bn.id:'FAIL'));
+    if(bn){ await api('/admin/banner/delete',{initData:QS_OWNER,id:bn.id}); }
+    r = await api('/upload',{initData:QS_CLIENT,b64:'/9j/4AAQSkZJRg==',mime:'image/jpeg'});
+    log('24) клиентский upload: '+((r.j.ok&&r.j.url&&r.j.url.includes('/img/'))?'OK '+r.j.url:'FAIL'));
+    if(r.j.ok){ const ir=await fetch(r.j.url); log('25) картинка отдаётся: '+(ir.status===200?'OK':'FAIL '+ir.status)); }
+    r = await api('/admin/settings',{initData:QS_CLIENT,settings:{shop_open:false}});
+    log('26) не-владелец НЕ меняет настройки: '+(r.status===403?'OK 403':'FAIL'));
+    r = await api('/order',{...ord,idem_key:'e2e4-'+Date.now(),items:[{id:99,qty:1}]});
+    log('27) несуществующий товар → empty: '+(r.j.error==='empty'?'OK':'FAIL'));
+    log('=== E2E V6 РЕЗУЛЬТАТ: смотрите выше, заказы/промокоды WELCOME10 и тест-данные требуют чистки ===');
+  }catch(e){ log('CRASH: '+e.message); }
+})();
+</script></body></html>
