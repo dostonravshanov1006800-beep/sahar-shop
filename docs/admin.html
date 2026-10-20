@@ -87,7 +87,7 @@ const PH = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/Chocolate_t
 const money = n => (n||0).toLocaleString('ru-RU').replace(/\u00A0/g,' ') + ' сум';
 const STATUS_RU = { new:'Новый', accepted:'Принят', delivering:'В доставке', done:'Завершён', cancelled:'Отменён' };
 
-const API_BASE = 'https://REPLACE_WORKER_URL';
+const API_BASE = 'https://sahar-shop.dostonravshanov1006800.workers.dev';
 function api(path, opts = {}) {
   return fetch(API_BASE + '/api' + path, { ...opts, headers: { 'Content-Type':'application/json', ...(opts.headers||{}) } })
     .then(async r => { const j = await r.json().catch(()=>({})); if (!r.ok) throw new Error(j.detail || j.error || 'error'); return j; });

@@ -228,7 +228,7 @@ const pdesc = p => LANG === 'uz' ? (p.desc_uz || p.desc_ru) : p.desc_ru;
 const PH = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/Chocolate_truffle_-_Delacre.jpg/960px-Chocolate_truffle_-_Delacre.jpg';
 const pimg = p => p.image_url || PH;
 
-const API_BASE = 'https://REPLACE_WORKER_URL';
+const API_BASE = 'https://sahar-shop.dostonravshanov1006800.workers.dev';
 function api(path, opts = {}) {
   return fetch(API_BASE + '/api' + path, {
     ...opts,

@@ -6,16 +6,15 @@ compatibility_date = "2024-09-01"
 # Telegram ID владельцев через запятую (админка + уведомления)
 OWNER_IDS = "[6999767433, 8396883978, 733521452]"
 # Публичный адрес витрины (GitHub Pages) — обновить после включения Pages
-WEBAPP_URL = "https://REPLACE_GITHUB_PAGES_URL/"
-# Секретная часть адреса вебхука бота
-HOOK_SECRET = "REPLACE_HOOK_SECRET"
+WEBAPP_URL = "https://dostonravshanov1006800-beep.github.io/sahar-shop/"
 
+# BOT_TOKEN и HOOK_SECRET задаются командой: npx wrangler secret put <имя>
 # BOT_TOKEN задаётся командой: npx wrangler secret put BOT_TOKEN
 # KV-пространство создастся командой: npx wrangler kv namespace create SHOP
 # затем впишите его id сюда:
 # [[kv_namespaces]]
 # binding = "SHOP"
-# id = "REPLACE_KV_ID"
+# id = "e19ff656e2da4a02abb28c785db9c191"
 [[kv_namespaces]]
 binding = "SHOP"
-id = "REPLACE_KV_ID"
+id = "e19ff656e2da4a02abb28c785db9c191"
