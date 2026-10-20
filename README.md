@@ -8,7 +8,7 @@
 
 ## Запуск
 1. GitHub Pages: Settings → Pages → ветка `main`, папка `/docs`
-2. Cloudflare: `npx wrangler kv namespace create SHOP` → id в `wrangler.toml`, затем `npx wrangler secret put BOT_TOKEN` и `npx wrangler deploy`
+2. Cloudflare: `cd cloudflare && npx wrangler kv namespace create SHOP` → id в `wrangler.toml`, затем `npx wrangler secret put BOT_TOKEN` и `npx wrangler deploy`
 3. Вебхук бота: `https://api.telegram.org/bot<TOKEN>/setWebhook?url=<WORKER_URL>/webhook/<HOOK_SECRET>&allowed_updates=["message","callback_query"]`
 4. В `wrangler.toml` укажите `WEBAPP_URL` (адрес GitHub Pages)
 
