@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>SAHAR</title>
+<meta property="og:title" content="SAHAR · Премиальные сладости">
+<meta property="og:description" content="Конфеты, трюфели, подарочные наборы">
+<meta property="og:image" content="https://dostonravshanov1006800-beep.github.io/sahar-shop/assets/og.jpg">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#4A2A20">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -365,6 +371,9 @@ async function boot(){
   if (!S.country) { toast('Магазин настраивается — попробуйте позже'); }
   applyTheme(); applyLang();
   renderNav(); renderCountry(); renderBanners(); renderCatGrid(); renderSections(); updateCartBadge();
+  const sp = String((tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || new URLSearchParams(location.search).get('product') || '');
+  const spm = /(?:product_)?(\d+)/.exec(sp);
+  if (spm){ const pid = Number(spm[1]); setTimeout(()=>{ if (S.prods.find(x=>x.id===pid)) openProduct(pid); }, 250); }
   if (!tg || !tg.initData) { DEMO = true; toast('Откройте магазин из Telegram для полного доступа'); }
   else fetchUnread();
   if (!localStorage.getItem('sahar_country_seen')) { localStorage.setItem('sahar_country_seen','1'); openCountrySheet(); }
@@ -583,9 +592,22 @@ function renderSections(){
 
 // ---------- товар ----------
 function copyText(x){ navigator.clipboard && navigator.clipboard.writeText(x).then(()=>toast('Скопировано')).catch(()=>toast('Не удалось')); }
-function shareProduct(p){
-  const u = 'https://t.me/share/url?url=' + encodeURIComponent('https://dostonravshanov1006800-beep.github.io/sahar-shop/') + '&text=' + encodeURIComponent('SAHAR — ' + pname(p) + ' · ' + money(p.price_usd));
-  if (tg && tg.openTelegramLink) tg.openTelegramLink(u); else window.open(u);
+const SHARE_BOT = 'Konfety_krft_deliciousbot';
+async function shareProduct(p){
+  haptic();
+  const wa = window.Telegram && Telegram.WebApp;
+  const link = 'https://t.me/' + SHARE_BOT + '?startapp=product_' + p.id;
+  if (wa && typeof wa.shareMessage === 'function' && tg && tg.initData && !DEMO){
+    try {
+      const r = await api('/share', { product_id: p.id, country: S.country ? S.country.code : null });
+      if (r && r.ok && r.id){
+        wa.shareMessage(r.id, (shared)=>{ if (!shared) toast('Не удалось поделиться'); });
+        return;
+      }
+    } catch(e){}
+  }
+  const u = 'https://t.me/share/url?url=' + encodeURIComponent(link) + '&text=' + encodeURIComponent('SAHAR — ' + pname(p) + ' · ' + money(p.price_usd));
+  if (wa && wa.openTelegramLink) wa.openTelegramLink(u); else window.open(u,'_blank');
 }
 function openBuilder(){
   haptic();

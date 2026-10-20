@@ -359,6 +359,27 @@ async function handle(request, env) {
       }
       return json(out.slice(0, 30));
     }
+    if (p === '/api/share' && request.method === 'POST') {
+      if (!user) return json({ ok: false, error: 'forbidden' }, 403);
+      const pid = Number(body.product_id);
+      const pr = await J.get(env, 'prod:' + pid);
+      if (!pr || pr.is_active === false || pr.is_deleted) return json({ ok: false, error: 'not_found' }, 404);
+      const photo = (pr.images && pr.images[0]) || pr.image_url;
+      if (!photo || !/^https?:\/\//.test(photo)) return json({ ok: false, error: 'no_photo' }, 400);
+      const s = await getSettings(env);
+      const c = (s.countries || []).find(x => x.code === (body.country || '')) || null;
+      const price = fmtMoney(pr.price_usd, c ? c.currency : 'USD', s.rates || {}, s.rounding || {}, c ? (s.markup || {})[c.code] || 0 : 0);
+      const link = 'https://t.me/' + env.BOT_USER + '?startapp=product_' + pid;
+      const tr = await (await fetch('https://api.telegram.org/bot' + env.BOT_TOKEN + '/savePreparedInlineMessage', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id, allow_user_chats: true, allow_bot_chats: true, allow_group_chats: true, allow_channel_chats: true,
+          result: { type: 'photo', id: 'p' + pid, photo_url: photo, thumbnail_url: photo,
+            caption: (pr.name_ru || 'SAHAR') + ' · ' + price,
+            reply_markup: { inline_keyboard: [[{ text: 'Открыть в SAHAR', url: link }]] } } })
+      })).json();
+      if (tr.ok) return json({ ok: true, id: tr.result.id, link });
+      return json({ ok: false, error: 'telegram_' + (tr.description || 'fail') }, 502);
+    }
     if (p === '/api/support' && request.method === 'GET') {
       if (!user) return json({ ok: false, error: 'forbidden' }, 403);
       const msgs = await J.get(env, 'msgs:' + user.id, []);
@@ -663,7 +684,7 @@ async function handle(request, env) {
         const clIds = (await J.get(env, 'client_ids', [])).slice(0, 40); // лимит подзапросов Worker
         let sent = 0, failed = 0;
         for (const tid of clIds) {
-          const r = await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text: CE_BRAND() + ' <b>SAHAR</b>\n' + esc(text), reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=13' } }]] } });
+          const r = await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text: CE_BRAND() + ' <b>SAHAR</b>\n' + esc(text), reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=14' } }]] } });
           if (r && r.ok) sent++; else failed++;
         }
         return json({ ok: true, sent, failed });
@@ -726,10 +747,10 @@ async function handleUpdate(env, u) {
         await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML',
           text: CE_BRAND() + ' <b>SAHAR — панель владельца</b>\n\n🆔 Ваш Telegram ID: <code>' + tid + '</code>\n' + tgE(CE.order, '🏪') + ' /orders — последние заказы\nЛюбое сообщение покупателя приходит сюда.',
           reply_markup: { inline_keyboard: [
-            [{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=13' } }],
-            [{ text: '🎛 Админ-панель', web_app: { url: env.WEBAPP_URL + 'admin.html?v=13' } }],
+            [{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=14' } }],
+            [{ text: '🎛 Админ-панель', web_app: { url: env.WEBAPP_URL + 'admin.html?v=14' } }],
           ] } });
-        await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=13' } } });
+        await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=14' } } });
         return;
       }
       if (m.text && m.text.startsWith('/orders')) { await sendOrders(env, tid, false); return; }
@@ -759,8 +780,8 @@ async function handleUpdate(env, u) {
     if (m.text && m.text.startsWith('/start')) {
       await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML',
         text: CE_BRAND() + ' Добро пожаловать в <b>SAHAR</b>!\nАвторские сладости ручной работы: трюфели, шоколад, восточные десерты и ' + tgE(CE.gift, '🎁') + ' подарочные наборы.\n\nДоставка по странам СНГ. Откройте магазин и закажите за пару касаний.',
-        reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=13' } }]] } });
-      await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=13' } } });
+        reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=14' } }]] } });
+      await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=14' } } });
       return;
     }
     if (m.contact) {
@@ -791,7 +812,7 @@ async function handleUpdate(env, u) {
         tgE(CE.chat, '💬') + ' <b>Сообщение от клиента</b>\n' + esc(msgText || '(вложение)') + '\n' + tgE(CE.client, '👤') + ' ' + esc(m.from.first_name || '') + ' · <a href="tg://user?id=' + tid + '">' + tid + '</a>',
         replyKb(tid));
     }
-    await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text: CE_BRAND() + ' Сообщение отправлено. Мы ответим здесь и в разделе «Сообщения» магазина.', reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=13' } }]] } });
+    await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text: CE_BRAND() + ' Сообщение отправлено. Мы ответим здесь и в разделе «Сообщения» магазина.', reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=14' } }]] } });
     return;
   }
   if (u.callback_query) {

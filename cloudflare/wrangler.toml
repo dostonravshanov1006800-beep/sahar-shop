@@ -7,6 +7,8 @@ compatibility_date = "2024-09-01"
 OWNER_IDS = "[6999767433, 8396883978, 733521452]"
 # Публичный адрес витрины (GitHub Pages) — обновить после включения Pages
 WEBAPP_URL = "https://dostonravshanov1006800-beep.github.io/sahar-shop/"
+# Username бота для ссылок «Поделиться»
+BOT_USER = "Konfety_krft_deliciousbot"
 
 # BOT_TOKEN и HOOK_SECRET задаются командой: npx wrangler secret put <имя>
 # BOT_TOKEN задаётся командой: npx wrangler secret put BOT_TOKEN
