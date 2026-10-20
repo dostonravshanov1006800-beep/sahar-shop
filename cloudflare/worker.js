@@ -88,6 +88,8 @@ const DEFAULT_SETTINGS = {
     { id: 'click', title_ru: 'Click', title_en: 'Click', countries: ['UZ'], instr_ru: 'Оплата через Click — реквизиты придут после оформления заказа.', instr_en: 'Click payment details will be sent after checkout.', active: true },
     { id: 'payme', title_ru: 'Payme', title_en: 'Payme', countries: ['UZ'], instr_ru: 'Оплата через Payme — реквизиты придут после оформления заказа.', instr_en: 'Payme payment details will be sent after checkout.', active: true },
   ],
+  card: { num: '', name: '', bank: '', brand: 'МИР' },
+  pay_only_card: true,
 };
 
 async function getSettings(env) {
@@ -277,8 +279,11 @@ async function handle(request, env) {
     if (p === '/api/settings' && request.method === 'GET') {
       const s = await getSettings(env);
       const cCode = url.searchParams.get('country') || '';
-      const pays = (s.payments || []).filter(x => x.active !== false).map(x => cCode && x.countries.includes(cCode) ? x : { ...x, instr_ru: '', instr_en: '' });
-      return json({ rates: s.rates, rounding: s.rounding, countries: s.countries, payments: pays, shop_open: s.shop_open !== false, anim: s.anim || 'silk', haptic: s.haptic !== false, v: 6 });
+      const onlyCard = s.pay_only_card === true;
+      let pays = (s.payments || []).filter(x => x.active !== false);
+      if (onlyCard) pays = pays.filter(x => x.id === 'card');
+      pays = pays.map(x => cCode && x.countries.includes(cCode) ? x : { ...x, instr_ru: '', instr_en: '' });
+      return json({ rates: s.rates, rounding: s.rounding, countries: s.countries, payments: pays, card: s.card || { num:'',name:'',bank:'',brand:'МИР' }, pay_only_card: onlyCard, shop_open: s.shop_open !== false, anim: s.anim || 'silk', haptic: s.haptic !== false, v: 6 });
     }
     if (p === '/api/verify') {
       if (!user) return json({ ok: false, error: 'invalid_init' }, 403);
@@ -741,7 +746,7 @@ async function handle(request, env) {
         const clIds = (await J.get(env, 'client_ids', [])).slice(0, 40); // лимит подзапросов Worker
         let sent = 0, failed = 0;
         for (const tid of clIds) {
-          const r = await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text: CE_BRAND() + ' <b>SAHAR</b>\n' + esc(text), reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=18' } }]] } });
+          const r = await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text: CE_BRAND() + ' <b>SAHAR</b>\n' + esc(text), reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=19' } }]] } });
           if (r && r.ok) sent++; else failed++;
         }
         return json({ ok: true, sent, failed });
@@ -757,6 +762,8 @@ async function handle(request, env) {
           if (patch.rates) for (const [k, v] of Object.entries(patch.rates)) { const n = Number(v); if (n > 0 && isFinite(n)) merged.rates[k] = n; }
           if (patch.countries) merged.countries = patch.countries.filter(c => c && c.code);
           if (patch.payments) merged.payments = patch.payments.map(p => ({ ...p, countries: Array.isArray(p.countries) ? p.countries : [] }));
+          if (patch.card) merged.card = { num: String(patch.card.num || '').replace(/[^\d ]/g, '').slice(0, 24).trim(), name: String(patch.card.name || '').slice(0, 40), bank: String(patch.card.bank || '').slice(0, 30), brand: ['МИР','VISA','Mastercard','UnionPay'].includes(patch.card.brand) ? patch.card.brand : 'МИР' };
+          if (patch.pay_only_card !== undefined) merged.pay_only_card = patch.pay_only_card === true;
           await J.put(env, 'settings', merged);
           return json({ ok: true, settings: merged });
         }
@@ -792,7 +799,7 @@ async function sendOrders(env, tid, own = false) {
     list.push('#' + o.id + ' · ' + CE_STAT(o.status) + ' ' + (STATUS_RU[o.status] || '—') + ' · <b>' + esc(amt) + '</b>' + (own ? '' : ' · ' + esc(o.client_name || (o.client || {}).first_name || '—')) + (own && o.tracking ? ' · 📍' + esc(o.tracking) : ''));
     if (list.length >= 5) break;
   }
-  const kb = own ? { inline_keyboard: [[{ text: 'Открыть магазин', icon_custom_emoji_id: CE.shop, web_app: { url: env.WEBAPP_URL + '?v=18' } }]] } : undefined;
+  const kb = own ? { inline_keyboard: [[{ text: 'Открыть магазин', icon_custom_emoji_id: CE.shop, web_app: { url: env.WEBAPP_URL + '?v=19' } }]] } : undefined;
   await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', ...(kb ? { reply_markup: kb } : {}),
     text: list.length ? (own ? CE_BRAND() + ' <b>Ваши заказы</b>\n\n' : tgE(CE.list, '🗂') + ' <b>Последние заказы</b>\n\n') + list.join('\n')
       : (own ? TEXTS.buyerOrdersEmpty() : TEXTS.ownerOrdersEmpty()) });
@@ -800,7 +807,7 @@ async function sendOrders(env, tid, own = false) {
 
 async function handleUpdate(env, u) {
   try { await ensureProfile(env); } catch (e) {}
-  const SHOP_URL = env.WEBAPP_URL + '?v=18';
+  const SHOP_URL = env.WEBAPP_URL + '?v=19';
   const shopBtn = (t) => ({ text: t, icon_custom_emoji_id: CE.shop, web_app: { url: SHOP_URL } });
   if (u.message) {
     const m = u.message, tid = m.from.id;
@@ -821,7 +828,7 @@ async function handleUpdate(env, u) {
           await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text: TEXTS.ownerStart(),
             reply_markup: { inline_keyboard: [
               [{ text: 'Последние заказы', icon_custom_emoji_id: CE.list, callback_data: 'owner_orders' }],
-              [{ text: 'Открыть CRM', icon_custom_emoji_id: CE.shop, web_app: { url: env.WEBAPP_URL + 'admin.html?v=18' } }],
+              [{ text: 'Открыть CRM', icon_custom_emoji_id: CE.shop, web_app: { url: env.WEBAPP_URL + 'admin.html?v=19' } }],
               [shopBtn('Открыть магазин')],
             ] } });
           try { await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: SHOP_URL } } }); } catch (e) {}

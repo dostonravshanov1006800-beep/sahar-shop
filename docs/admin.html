@@ -862,10 +862,34 @@ async function renderSettingsAdm(){
     <div class="field" style="margin-top:8px"><label>Инструкция / реквизиты</label><textarea id="pin_${p.id}" rows="2">${escHtml(p.instr_ru||'')}</textarea></div>
   </div>`).join('')}
   <button class="btn btn-gold blk" onclick="guard(savePayments)">💾 Сохранить реквизиты</button>
+  <div class="sect-t">Карта для приёма оплат</div>
+  <div class="card">
+    <div class="row" style="display:flex;justify-content:space-between;align-items:center">
+      <div><b>Только перевод на карту</b><div class="muted" style="font-size:11.5px;margin-top:2px">Покупателям виден только этот способ. Выключите, чтобы вернуть оплату по странам.</div></div>
+      <button id="pcOnly" class="${s.pay_only_card!==false?'on':''}" onclick="this.classList.toggle('on');this.textContent=this.classList.contains('on')?'✓ Включён':'Выключен'" style="padding:8px 12px;border-radius:10px;border:1px solid var(--hair);background:var(--surface);font:700 12px 'Manrope';cursor:pointer;color:var(--text)">${s.pay_only_card!==false?'✓ Включён':'Выключен'}</button>
+    </div>
+    <div class="frow" style="margin-top:10px">
+      <div class="field" style="flex:2"><label>Номер карты</label><input id="cardNum" inputmode="numeric" placeholder="2202 2035 5537 4653" value="${escHtml((s.card||{}).num||'')}"></div>
+      <div class="field" style="flex:1"><label>Владелец (на карте)</label><input id="cardName" placeholder="ИМЯ ФАМИЛИЯ" value="${escHtml((s.card||{}).name||'')}"></div>
+    </div>
+    <div class="frow" style="margin-top:8px">
+      <div class="field" style="flex:1"><label>Банк / вид карты</label><input id="cardBank" list="bankList" placeholder="СБЕР БАНК" value="${escHtml((s.card||{}).bank||'')}"><datalist id="bankList"><option>СБЕР БАНК</option><option>Т-БАНК</option><option>АЛЬФА-БАНК</option><option>ВТБ</option><option>ХАМКОРБАНК</option><option>UZCARD</option><option>HUMO</option></datalist></div>
+      <div class="field" style="flex:1"><label>Платёжная система</label><select id="cardBrand" style="background:var(--surface);border:1px solid var(--hair);border-radius:9px;padding:8px 10px;color:var(--text);font:700 14px 'Manrope'">${['МИР','VISA','Mastercard','UnionPay'].map(b=>`<option ${((s.card||{}).brand||'МИР')===b?'selected':''}>${b}</option>`).join('')}</select></div>
+    </div>
+    <div class="muted" style="font-size:11.5px;margin-top:8px">Эти реквизиты покупатель увидит на экране сразу после оформления заказа.</div>
+    <button class="btn btn-gold blk" style="margin-top:10px" onclick="guard(saveCard)">💾 Сохранить карту</button>
+  </div>
   <div class="sect-t">Анимации витрины</div>
   <div class="card"><div class="kb" id="animKb">${['silk','shimmer','parallax','festive','minimal'].map(a=>`<button class="${s.anim===a?'on':''}" onclick="pickAnim('${a}')">${{silk:'Silk',shimmer:'Golden Shimmer',parallax:'Parallax Luxe',festive:'Festive ✨',minimal:'Minimal'}[a]}</button>`).join('')}</div>
   <div class="muted" style="font-size:12px;margin-top:8px">Живое превью на витрине после сохранения.</div>
   <button class="btn btn-gold blk" onclick="saveAnim()">💾 Применить анимацию</button></div>`;
+}
+async function saveCard(){
+  const r = await api('/admin/settings'); const s = r.settings || r;
+  s.card = { num: ($('cardNum').value||'').replace(/[^\d ]/g,'').slice(0,24).trim(), name: $('cardName').value.trim().slice(0,40), bank: $('cardBank').value.trim().slice(0,30), brand: $('cardBrand').value };
+  s.pay_only_card = $('pcOnly').classList.contains('on');
+  await api('/admin/settings', { settings: s });
+  toast('Карта и режим оплаты сохранены');
 }
 let pendingAnim = null;
 async function pickAnim(a){ pendingAnim = a; [...$('animKb').querySelectorAll('button')].forEach(b=>b.classList.remove('on')); event.target.classList.add('on'); }
