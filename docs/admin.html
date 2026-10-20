@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>SAHAR — админ-панель</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{ --gold:#b08d3f; --ink:#231a10; }
+  body{ font-family:'Manrope',system-ui,sans-serif; background:#faf8f3; color:var(--ink); margin:0; overscroll-behavior:none; }
+  .display{ font-family:'Playfair Display',serif; }
+  .gold{ color:var(--gold); }
+  .btn-gold{ background:var(--gold); color:#fff; font-weight:800; }
+  .card{ background:#fff; border:1px solid #f0e9dd; border-radius:18px; }
+  .tab.active{ background:var(--ink); color:#fff; }
+  .st-new{ background:#fdf1e3; color:#9a6a1a; } .st-accepted{ background:#e8f0fa; color:#2f5d9a; }
+  .st-delivering{ background:#eef3e6; color:#4f7a2f; } .st-done{ background:#e8f3e6; color:#3d7a33; }
+  .st-cancelled{ background:#f9e9e7; color:#a3402f; }
+  input,select,textarea{ outline:none; }
+</style>
+</head>
+<body class="pb-8">
+
+<div class="px-4 pt-5 pb-3">
+  <div class="display text-[26px] font-extrabold tracking-[0.18em]">SAHAR<span class="gold">.</span></div>
+  <div class="text-[10px] font-extrabold tracking-[0.3em] uppercase gold">Админ-панель · только владелец</div>
+</div>
+
+<div id="noAccess" class="hidden px-6 py-24 text-center">
+  <div class="text-xl font-extrabold">Нет доступа</div>
+  <div class="text-sm font-semibold text-[#a39274] mt-2">Панель доступна только владельцу и его администраторам.</div>
+</div>
+
+<div id="panel" class="hidden">
+  <!-- stats -->
+  <div class="grid grid-cols-3 gap-2 px-4 mb-4">
+    <div class="card p-3 text-center"><div class="text-[10px] font-extrabold uppercase tracking-wider text-[#a39274]">Новые</div><div id="stNew" class="text-xl font-extrabold gold mt-1">0</div></div>
+    <div class="card p-3 text-center"><div class="text-[10px] font-extrabold uppercase tracking-wider text-[#a39274]">Заказы</div><div id="stOrders" class="text-xl font-extrabold mt-1">0</div></div>
+    <div class="card p-3 text-center"><div class="text-[10px] font-extrabold uppercase tracking-wider text-[#a39274]">Выручка</div><div id="stRevenue" class="text-sm font-extrabold mt-1.5">0</div></div>
+  </div>
+
+  <!-- tabs -->
+  <div class="flex gap-2 px-4 mb-4">
+    <button onclick="tab('orders')" id="tab-orders" class="tab active px-4 py-2 rounded-full text-[13px] font-bold border border-[#e8dfc9]">Заказы</button>
+    <button onclick="tab('products')" id="tab-products" class="tab px-4 py-2 rounded-full text-[13px] font-bold border border-[#e8dfc9] text-[#7a6a4f]">Товары</button>
+  </div>
+
+  <!-- orders -->
+  <div id="view-orders" class="px-4 flex flex-col gap-3"></div>
+
+  <!-- products -->
+  <div id="view-products" class="hidden px-4">
+    <button onclick="showProductForm()" class="btn-gold w-full h-12 rounded-2xl mb-4 text-[14px]">+ Добавить товар</button>
+    <div id="prodList" class="flex flex-col gap-2"></div>
+  </div>
+
+  <div id="prodForm" class="hidden px-4 fixed inset-0 z-50 bg-[#faf8f3] overflow-y-auto">
+    <div class="sticky top-0 bg-[#faf8f3] px-4 py-4 flex items-center gap-3 border-b border-[#f0e9dd]">
+      <button onclick="hideProductForm()" class="w-9 h-9 rounded-full bg-white border border-[#f0e9dd] flex items-center justify-center">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#231a10" stroke-width="2"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <div class="text-lg font-extrabold">Товар</div>
+    </div>
+    <div class="px-4 py-4 flex flex-col gap-3 pb-28">
+      <div class="card p-4"><div class="text-xs font-extrabold uppercase tracking-widest text-[#a39274] mb-2">Категория</div><select id="pfCat" class="w-full font-bold text-[15px]"></select></div>
+      <div class="card p-4"><div class="text-xs font-extrabold uppercase tracking-widest text-[#a39274] mb-2">Фото (ссылка URL)</div><input id="pfImage" class="w-full font-semibold text-[13px] mb-3" placeholder="https://..."><div class="text-xs font-extrabold uppercase tracking-widest text-[#a39274] mb-2">Название (RU)</div><input id="pfNameRu" class="w-full font-bold text-[15px]"><div class="text-xs font-extrabold uppercase tracking-widest text-[#a39274] mt-3 mb-2">Название (UZ)</div><input id="pfNameUz" class="w-full font-bold text-[15px]"></div>
+      <div class="card p-4"><div class="text-xs font-extrabold uppercase tracking-widest text-[#a39274] mb-2">Описание (RU)</div><textarea id="pfDescRu" rows="3" class="w-full font-semibold text-[14px]"></textarea><div class="text-xs font-extrabold uppercase tracking-widest text-[#a39274] mt-3 mb-2">Описание (UZ)</div><textarea id="pfDescUz" rows="3" class="w-full font-semibold text-[14px]"></textarea></div>
+      <div class="grid grid-cols-3 gap-2">
+        <div class="card p-3"><div class="text-[10px] font-extrabold uppercase text-[#a39274]">Цена, сум</div><input id="pfPrice" type="number" class="w-full font-extrabold text-[15px] mt-1"></div>
+        <div class="card p-3"><div class="text-[10px] font-extrabold uppercase text-[#a39274]">Старая цена</div><input id="pfOld" type="number" class="w-full font-extrabold text-[15px] mt-1" value="0"></div>
+        <div class="card p-3"><div class="text-[10px] font-extrabold uppercase text-[#a39274]">Склад</div><input id="pfStock" type="number" class="w-full font-extrabold text-[15px] mt-1" value="0"></div>
+      </div>
+      <button onclick="saveProduct()" class="btn-gold w-full h-14 rounded-2xl text-[15px]">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.ready(); tg.expand(); tg.setHeaderColor('#faf8f3');
+let cats = [], editPid = null, ordersCache = [];
+const PH = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/Chocolate_truffle_-_Delacre.jpg/960px-Chocolate_truffle_-_Delacre.jpg';
+const money = n => (n||0).toLocaleString('ru-RU').replace(/\u00A0/g,' ') + ' сум';
+const STATUS_RU = { new:'Новый', accepted:'Принят', delivering:'В доставке', done:'Завершён', cancelled:'Отменён' };
+
+const API_BASE = 'https://REPLACE_WORKER_URL';
+function api(path, opts = {}) {
+  return fetch(API_BASE + '/api' + path, { ...opts, headers: { 'Content-Type':'application/json', ...(opts.headers||{}) } })
+    .then(async r => { const j = await r.json().catch(()=>({})); if (!r.ok) throw new Error(j.detail || j.error || 'error'); return j; });
+}
+
+async function init() {
+  try {
+    const j = await api('/verify', { method:'POST', body: JSON.stringify({ initData: tg.initData || '' }) });
+    if (!j.is_admin) { document.getElementById('noAccess').classList.remove('hidden'); return; }
+  } catch (e) { document.getElementById('noAccess').classList.remove('hidden'); return; }
+  document.getElementById('panel').classList.remove('hidden');
+  cats = (await api('/catalog')).categories;
+  await refresh();
+}
+
+async function refresh() {
+  await loadOrders(); await loadStats(); await loadProducts();
+}
+
+async function loadStats() {
+  const s = {
+    new_orders: ordersCache.filter(o => o.status === 'new').length,
+    orders: ordersCache.length,
+    revenue: ordersCache.filter(o => o.status === 'done').reduce((a, o) => a + o.total, 0)
+  };
+  document.getElementById('stNew').textContent = s.new_orders;
+  document.getElementById('stOrders').textContent = s.orders;
+  document.getElementById('stRevenue').textContent = money(s.revenue).replace(' сум','');
+}
+
+async function loadOrders() {
+  ordersCache = await api('/admin/orders?initData=' + encodeURIComponent(tg.initData));
+  renderOrders();
+}
+function renderOrders() {
+  const el = document.getElementById('view-orders');
+  el.innerHTML = ordersCache.map(o => {
+    const items = o.items.map(i => `• ${i.name_ru} ×${i.qty}`).join('<br>');
+    const nextBtn = o.status === 'new' ?
+      `<button onclick="setStatus(${o.id},'accepted')" class="flex-1 h-10 rounded-xl bg-[#3d7a33] text-white text-xs font-extrabold">✅ Принять</button>
+       <button onclick="setStatus(${o.id},'cancelled')" class="flex-1 h-10 rounded-xl bg-[#a3402f] text-white text-xs font-extrabold">❌ Отклонить</button>` :
+     o.status === 'accepted' ?
+      `<button onclick="setStatus(${o.id},'delivering')" class="flex-1 h-10 rounded-xl bg-[#231a10] text-white text-xs font-extrabold">🚚 В доставку</button>
+       <button onclick="setStatus(${o.id},'done')" class="flex-1 h-10 rounded-xl bg-[#3d7a33] text-white text-xs font-extrabold">🏁 Выполнен</button>` :
+     o.status === 'delivering' ?
+      `<button onclick="setStatus(${o.id},'done')" class="w-full h-10 rounded-xl bg-[#3d7a33] text-white text-xs font-extrabold">🏁 Доставлен</button>` : '';
+    const pay = {cash:'Наличные',card:'Карта',click:'Click',payme:'Payme'}[o.payment_method] || o.payment_method;
+    return `
+    <div class="card p-4">
+      <div class="flex items-center justify-between">
+        <span class="font-extrabold">Заказ #${o.id}</span>
+        <span class="st-${o.status} text-[11px] font-extrabold px-2 py-1 rounded-md">${STATUS_RU[o.status]}</span>
+      </div>
+      <div class="text-[11px] font-bold text-[#a39274] mt-0.5">${(o.created_at||'').slice(0,16)} · ${pay}</div>
+      <div class="mt-2 text-[13px] font-semibold leading-relaxed">${items}</div>
+      <div class="mt-2 text-[13px] font-semibold text-[#6d5c3f]">📍 ${o.address}<br>📞 ${o.phone}${o.comment ? '<br>💬 ' + o.comment : ''}</div>
+      <div class="flex justify-between items-center mt-3 pt-3 border-t border-[#f0e9dd]">
+        <a href="https://t.me/${o.client.username || 'user'}" class="text-[12px] font-extrabold gold">@${o.client.first_name || o.client.telegram_id} · ${o.client.telegram_id}</a>
+        <span class="font-extrabold gold">${money(o.total)}</span>
+      </div>
+      ${nextBtn ? `<div class="flex gap-2 mt-3">${nextBtn}</div>` : ''}
+    </div>`;
+  }).join('') || '<div class="text-center text-sm font-semibold text-[#a39274] py-16">Заказов пока нет</div>';
+}
+async function setStatus(oid, status) {
+  await api('/admin/order', { method:'POST', body: JSON.stringify({ initData: tg.initData, order_id: oid, status }) });
+  await loadOrders(); await loadStats();
+}
+
+async function loadProducts() {
+  const list = await api('/products?all=1&initData=' + encodeURIComponent(tg.initData));
+  productListCache = list;
+  const el = document.getElementById('prodList');
+  el.innerHTML = list.map(p => `
+    <div class="card p-3 flex items-center justify-between gap-2">
+      <img src="${p.image_url || PH}" class="w-12 h-12 rounded-lg object-cover">
+      <div class="flex-1">
+        <div class="font-extrabold text-[14px] ${p.is_active ? '' : 'opacity-40 line-through'}">${p.name_ru}</div>
+        <div class="text-[12px] font-bold gold">${money(p.price)} · склад: ${p.stock}</div>
+      </div>
+      <div class="flex gap-1.5">
+        <button onclick="showProductForm(${p.id})" class="text-[11px] font-extrabold px-3 py-2 rounded-lg bg-[#f5efe3]">Изменить</button>
+        <button onclick="hideProduct(${p.id})" class="text-[11px] font-extrabold px-3 py-2 rounded-lg bg-[#f9e9e7] text-[#a3402f]">${p.is_active ? 'Скрыть' : 'Вернуть'}</button>
+      </div>
+    </div>`).join('');
+}
+
+async function hideProduct(pid) {
+  const p = productListCache.find(x => x.id === pid);
+  if (!p) return;
+  await api('/admin/product', { method:'POST', body: JSON.stringify({ initData: tg.initData,
+    product: { id: pid, category_id: p.category_id, image_url: p.image_url || '', name_ru: p.name_ru, name_uz: p.name_uz,
+      desc_ru: p.desc_ru, desc_uz: p.desc_uz, price: p.price, old_price: p.old_price, stock: p.stock,
+      is_active: !p.is_active } }) });
+  await loadProducts();
+}
+
+function tab(name) {
+  ['orders','products'].forEach(n => {
+    document.getElementById('view-' + n).classList.toggle('hidden', n !== name);
+    document.getElementById('tab-' + n).classList.toggle('active', n === name);
+    document.getElementById('tab-' + n).classList.toggle('text-[#7a6a4f]', n !== name);
+  });
+}
+
+let productListCache = [];
+function showProductForm(pid) {
+  editPid = pid || null;
+  {
+    const list = productListCache;
+    const p = pid ? list.find(x => x.id === pid) : null;
+    document.getElementById('pfCat').innerHTML = cats.map(c => `<option value="${c.id}" ${p && p.category_id===c.id?'selected':''}>${c.name_ru}</option>`).join('');
+    document.getElementById('pfImage').value = p ? (p.image_url || '') : '';
+    document.getElementById('pfNameRu').value = p ? p.name_ru : '';
+    document.getElementById('pfNameUz').value = p ? p.name_uz : '';
+    document.getElementById('pfDescRu').value = p ? p.desc_ru : '';
+    document.getElementById('pfDescUz').value = p ? p.desc_uz : '';
+    document.getElementById('pfPrice').value = p ? p.price : '';
+    document.getElementById('pfOld').value = p ? p.old_price : 0;
+    document.getElementById('pfStock').value = p ? p.stock : 0;
+    document.getElementById('prodForm').classList.remove('hidden');
+  }
+}
+function hideProductForm() { document.getElementById('prodForm').classList.add('hidden'); }
+async function saveProduct() {
+  const body = {
+    category_id: parseInt(document.getElementById('pfCat').value),
+    image_url: document.getElementById('pfImage').value.trim(),
+    name_ru: document.getElementById('pfNameRu').value.trim(),
+    name_uz: document.getElementById('pfNameUz').value.trim(),
+    desc_ru: document.getElementById('pfDescRu').value.trim(),
+    desc_uz: document.getElementById('pfDescUz').value.trim(),
+    price: parseInt(document.getElementById('pfPrice').value) || 0,
+    old_price: parseInt(document.getElementById('pfOld').value) || 0,
+    stock: parseInt(document.getElementById('pfStock').value) || 0,
+    is_active: true,
+  };
+  if (!body.name_ru || !body.price) { alert('Название и цена обязательны'); return; }
+  if (editPid) body.id = editPid;
+  await api('/admin/product', { method:'POST', body: JSON.stringify({ initData: tg.initData, product: body }) });
+  hideProductForm(); await loadProducts();
+}
+
+init();
+</script>
+</body>
+</html>

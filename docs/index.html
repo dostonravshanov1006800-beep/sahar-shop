@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>SAHAR — премиальные сладости</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{ --gold:#b08d3f; --gold-soft:#c9a24b; --ink:#231a10; --bg:#faf8f3; }
+  body{ font-family:'Manrope',system-ui,sans-serif; background:var(--bg); color:var(--ink); margin:0; overscroll-behavior:none; }
+  .display{ font-family:'Playfair Display',serif; }
+  .gold{ color:var(--gold); }
+  .btn-gold{ background:linear-gradient(135deg,#c9a24b,#a67c2e); color:#fff; font-weight:800; box-shadow:0 4px 14px rgba(176,141,63,.35); }
+  .btn-gold:active{ transform:scale(.97); }
+  .card{ background:#fff; border:1px solid #f0e9dd; border-radius:18px; }
+  .chip{ border:1px solid #e8dfc9; color:#7a6a4f; font-weight:700; }
+  .chip.active{ background:var(--ink); color:#fff; border-color:var(--ink); }
+  .screen{ display:none; } .screen.active{ display:block; }
+  .toast{ position:fixed; left:50%; transform:translateX(-50%); bottom:92px; background:var(--ink); color:#fff; font-weight:700; padding:10px 20px; border-radius:14px; z-index:99; font-size:14px; opacity:0; transition:.25s; pointer-events:none; }
+  .toast.show{ opacity:1; }
+  .qty-btn{ width:34px; height:34px; border-radius:10px; background:#f5efe3; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .pulse{ animation:pulse .25s ease; } @keyframes pulse{ 0%{transform:scale(.95)} 100%{transform:scale(1)} }
+  .banner-track{ display:flex; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; }
+  .banner-track::-webkit-scrollbar{ display:none; }
+  .banner-slide{ scroll-snap-align:start; flex:0 0 100%; }
+  .fade-in{ animation:fadein .3s ease; } @keyframes fadein{ from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none} }
+</style>
+</head>
+<body class="pb-24">
+
+<!-- HEADER -->
+<div class="sticky top-0 z-30 bg-[#faf8f3]/95 backdrop-blur px-4 pt-4 pb-3 border-b border-[#f0e9dd]">
+  <div class="flex items-center justify-between">
+    <div>
+      <div class="display text-[28px] font-extrabold tracking-[0.18em] leading-none">SAHAR</div>
+      <div class="text-[10px] font-bold tracking-[0.3em] uppercase gold mt-1" id="tagline">Премиальные сладости</div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="toggleLang()" id="langBtn" class="text-xs font-extrabold tracking-widest text-[#8b7a5c] px-2 py-1">RU</button>
+      <button onclick="openCart()" class="relative w-11 h-11 rounded-full bg-white border border-[#f0e9dd] flex items-center justify-center">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#231a10" stroke-width="1.7"><path d="M6 7h12l1.2 13H4.8L6 7Z"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/></svg>
+        <span id="cartBadge" class="hidden absolute -top-1 -right-1 bg-[#b08d3f] text-white text-[10px] font-extrabold w-5 h-5 rounded-full flex items-center justify-center">0</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- SEARCH -->
+<div class="px-4 pt-4" id="searchWrap">
+  <div class="card flex items-center gap-2 px-4 h-12">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b08d3f" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input id="searchInput" oninput="onSearch()" class="w-full h-full bg-transparent text-[15px] font-semibold placeholder-[#b9ab8f]" placeholder="Поиск по каталогу">
+  </div>
+  <div id="chips" class="flex gap-2 overflow-x-auto mt-3 pb-1 -mx-4 px-4"></div>
+</div>
+
+<!-- HOME -->
+<div id="screen-home" class="screen active px-4 pt-4">
+  <!-- БАННЕР-КАРУСЕЛЬ -->
+  <div class="rounded-2xl overflow-hidden mb-2 relative">
+    <div class="banner-track" id="bannerTrack"></div>
+    <div class="absolute bottom-3 right-4 flex gap-1.5" id="bannerDots"></div>
+  </div>
+  <!-- ХИТЫ -->
+  <div id="hitsWrap" class="hidden">
+    <div class="flex items-baseline justify-between mt-5 mb-3">
+      <div class="display text-2xl font-extrabold" id="hitsTitle">Хиты продаж</div>
+      <div class="text-[10px] font-extrabold uppercase tracking-[0.2em] gold">SAHAR</div>
+    </div>
+    <div class="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4" id="hitsRow"></div>
+  </div>
+  <!-- КАТАЛОГ -->
+  <div class="flex items-baseline justify-between mt-5 mb-3">
+    <div class="display text-2xl font-extrabold" id="catalogTitle">Каталог</div>
+  </div>
+  <div id="grid" class="grid grid-cols-2 gap-3"></div>
+</div>
+
+<!-- FAVORITES -->
+<div id="screen-fav" class="screen px-4 pt-4">
+  <div class="display text-3xl font-extrabold mb-4" id="favTitle">Избранное</div>
+  <div id="favGrid" class="grid grid-cols-2 gap-3"></div>
+  <div id="favEmpty" class="hidden text-center text-sm font-semibold text-[#a39274] py-16"></div>
+</div>
+
+<!-- MESSAGES -->
+<div id="screen-chat" class="screen px-4 pt-4">
+  <div class="display text-3xl font-extrabold mb-2" id="chatTitle">Сообщения</div>
+  <div class="text-xs font-semibold text-[#a39274] mb-4" id="chatSub"></div>
+  <div id="chatBox" class="flex flex-col gap-2 pb-4"></div>
+  <div class="card flex items-center gap-2 px-4 h-14 sticky bottom-20 z-10 bg-white">
+    <input id="chatInput" class="w-full bg-transparent text-[15px] font-semibold" onkeydown="if(event.key==='Enter')sendChat()">
+    <button onclick="sendChat()" class="btn-gold w-9 h-9 rounded-xl flex items-center justify-center shrink-0">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- PROFILE -->
+<div id="screen-profile" class="screen px-4 pt-4">
+  <div class="card p-5 flex items-center gap-4 mb-4">
+    <div id="avatar" class="w-14 h-14 rounded-full bg-[#231a10] text-[#c9a24b] display text-xl font-extrabold flex items-center justify-center">S</div>
+    <div>
+      <div id="pName" class="text-lg font-extrabold">Клиент SAHAR</div>
+      <div id="pId" class="text-xs font-bold text-[#a39274]"></div>
+    </div>
+  </div>
+  <button onclick="openOrders()" class="card w-full p-4 flex items-center justify-between mb-3">
+    <span class="font-extrabold" id="myOrdersBtn"></span>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b08d3f" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg>
+  </button>
+  <button onclick="toggleLang()" class="card w-full p-4 flex items-center justify-between mb-3">
+    <span class="font-extrabold" id="langBtn2"></span>
+    <span class="text-xs font-extrabold gold" id="langVal">RU</span>
+  </button>
+  <button onclick="nav('chat')" class="card w-full p-4 flex items-center justify-between mb-3">
+    <span class="font-extrabold" id="supportBtn"></span>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b08d3f" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg>
+  </button>
+  <div class="text-center text-[10px] font-bold tracking-[0.25em] uppercase text-[#b9ab8f] mt-8">SAHAR · Premium Sweets · Tashkent</div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#f0e9dd]" style="padding-bottom:env(safe-area-inset-bottom)">
+  <div class="flex items-stretch">
+    <button onclick="nav('home')" class="navbtn flex-1 flex flex-col items-center gap-1 pt-2.5 pb-2" data-s="home">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 7h12l1.2 13H4.8L6 7Z"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/></svg>
+      <span class="text-[10px] font-bold" id="navShop"></span>
+    </button>
+    <button onclick="nav('fav')" class="navbtn flex-1 flex flex-col items-center gap-1 pt-2.5 pb-2" data-s="fav">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 20s-7-4.6-7-9.4C5 8 7 6 9.4 6c1.2 0 2 .5 2.6 1.3C12.6 6.5 13.4 6 14.6 6 17 6 19 8 19 10.6 19 15.4 12 20 12 20Z"/></svg>
+      <span class="text-[10px] font-bold" id="navFav"></span>
+    </button>
+    <button onclick="nav('chat')" class="navbtn flex-1 flex flex-col items-center gap-1 pt-2.5 pb-2" data-s="chat">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 12a8 8 0 0 1-8 8H4l2-3a8 8 0 1 1 15-5Z"/><path d="m12 13.5 0 .01M8.5 13.5l0 .01M15.5 13.5l0 .01"/></svg>
+      <span class="text-[10px] font-bold" id="navChat"></span>
+    </button>
+    <button onclick="nav('profile')" class="navbtn flex-1 flex flex-col items-center gap-1 pt-2.5 pb-2" data-s="profile">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>
+      <span class="text-[10px] font-bold" id="navProfile"></span>
+    </button>
+  </div>
+</div>
+
+<!-- PRODUCT SHEET -->
+<div id="sheet" class="fixed inset-0 z-50 hidden">
+  <div class="absolute inset-0 bg-black/40" onclick="closeSheet()"></div>
+  <div class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[88vh] overflow-y-auto" id="sheetBody"></div>
+</div>
+
+<!-- CART / CHECKOUT / ORDERS -->
+<div id="overlay" class="fixed inset-0 z-50 hidden bg-[#faf8f3] overflow-y-auto">
+  <div class="sticky top-0 bg-[#faf8f3] px-4 py-4 flex items-center gap-3 border-b border-[#f0e9dd] z-10">
+    <button onclick="closeOverlay()" class="w-9 h-9 rounded-full bg-white border border-[#f0e9dd] flex items-center justify-center">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#231a10" stroke-width="2"><path d="M15 6l-6 6 6 6"/></svg>
+    </button>
+    <div id="overlayTitle" class="display text-xl font-extrabold"></div>
+  </div>
+  <div id="overlayBody" class="px-4 py-4 pb-32"></div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="catalog-fallback.js"></script>
+<script>
+const tg = window.Telegram.WebApp;
+try { tg.ready(); tg.expand(); tg.setHeaderColor('#faf8f3'); } catch(e) {}
+
+let TOKEN = '', USER = null, IS_ADMIN = false, LANG = 'ru', DEMO = false;
+let cats = [], products = [], favSet = new Set(), currentProduct = null, chatTimer = null, bannerTimer = null;
+
+const BANNERS = [
+  { img: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8f/Chocolate_Truffles_at_Harrods_in_London_by_Robbie_Conceptuel.png/960px-Chocolate_Truffles_at_Harrods_in_London_by_Robbie_Conceptuel.png',
+    kicker_ru: 'Коллекция SAHAR Signature', title_ru: 'Трюфели ручной<br>работы', kicker_uz: 'SAHAR Signature', title_uz: 'Qo\'lda yasalgan<br>trüfellari', cat: 1 },
+  { img: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/34/020260501_Chocolate-covered_strawberries.jpg/960px-020260501_Chocolate-covered_strawberries.jpg',
+    kicker_ru: '−20% на этой неделе', title_ru: 'Клубника в белом<br>шоколаде', kicker_uz: 'Bu hafta −20%', title_uz: 'Oq shokoladli<br>qulupnay', cat: 1, badge: 'SALE −20%' },
+  { img: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/28/Chocolate_truffles_-_prep1.jpg/960px-Chocolate_truffles_-_prep1.jpg',
+    kicker_ru: 'Ручная работа · Ташкент', title_ru: 'Подарочные наборы<br>для дорогих людей', kicker_uz: 'Qo\'lda · Toshkent', title_uz: 'Sevgan insonga<br>sovg\'a to\'plamlari', cat: 4 },
+];
+
+const I18N = {
+  ru: { tagline:'Премиальные сладости', search:'Поиск по каталогу', hitsTitle:'Хиты продаж',
+    catalogTitle:'Каталог', favTitle:'Избранное', chatTitle:'Сообщения',
+    navShop:'Магазин', navFav:'Избранное', navChat:'Сообщения', navProfile:'Профиль',
+    myOrders:'Мои заказы', lang:'Язык', support:'Поддержка', toCart:'В корзину',
+    inCart:'Добавлено в корзину', cart:'Корзина', checkout:'Оформить заказ', total:'Итого',
+    address:'Адрес доставки', phone:'Телефон', comment:'Комментарий (необязательно)',
+    payment:'Способ оплаты', payCash:'Наличными при получении', payCard:'Перевод на карту',
+    payClick:'Click', payPayme:'Payme', confirm:'Подтвердить заказ', orderDone:'Заказ принят!',
+    orderDoneSub:'Владелец уже получил вашу заявку и свяжется с вами.',
+    emptyCart:'Корзина пуста', favEmpty:'Здесь появятся ваши любимые сладости',
+    chatSub:'Напишите владельцу — он ответит лично', noOrders:'Заказов пока нет',
+    all:'Все', stock:'в наличии', out:'Нет в наличии',
+    statusNew:'Новый', statusAccepted:'Принят', statusDelivering:'В доставке',
+    statusDone:'Завершён', statusCancelled:'Отменён',
+    tgOnly:'Откройте приложение через Telegram, чтобы заказывать',
+    profileDemo:'Гость · откройте через Telegram' },
+  uz: { tagline:'Premium shirinliklar', search:'Katalogdan qidirish', hitsTitle:'Eng saralangan',
+    catalogTitle:'Katalog', favTitle:'Sevimlilar', chatTitle:'Xabarlar',
+    navShop:'Do\'kon', navFav:'Sevimlilar', navChat:'Xabarlar', navProfile:'Profil',
+    myOrders:'Buyurtmalarim', lang:'Til', support:'Qo\'llab-quvvatlash', toCart:'Savatga',
+    inCart:'Savatga qo\'shildi', cart:'Savat', checkout:'Buyurtma berish', total:'Jami',
+    address:'Yetkazish manzili', phone:'Telefon', comment:'Izoh (majburiy emas)',
+    payment:'To\'lov usuli', payCash:'Qabul qilib olishda naqd', payCard:'Kartaga o\'tkazish',
+    payClick:'Click', payPayme:'Payme', confirm:'Buyurtmani tasdiqlash', orderDone:'Buyurtma qabul qilindi!',
+    orderDoneSub:'Egasiga arizangiz yuborildi, u siz bilan bog\'lanadi.',
+    emptyCart:'Savat bo\'sh', favEmpty:'Sevimli shirinliklaringiz shu yerda',
+    chatSub:'Egasiga yozing — u shaxsan javob beradi', noOrders:'Hozircha buyurtma yo\'q',
+    all:'Barchasi', stock:'omborda', out:'Mavjud emas',
+    statusNew:'Yangi', statusAccepted:'Qabul qilindi', statusDelivering:'Yetkazilmoqda',
+    statusDone:'Bajarildi', statusCancelled:'Bekor qilindi',
+    tgOnly:'Buyurtma berish uchun ilovani Telegram orqali oching',
+    profileDemo:'Mehmon · Telegram orqali oching' }
+};
+const t = k => (I18N[LANG] && I18N[LANG][k]) || I18N.ru[k] || k;
+const money = n => n.toLocaleString('ru-RU').replace(/\u00A0/g,' ') + ' сум';
+const pname = p => LANG === 'uz' ? (p.name_uz || p.name_ru) : p.name_ru;
+const pdesc = p => LANG === 'uz' ? (p.desc_uz || p.desc_ru) : p.desc_ru;
+const PH = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/Chocolate_truffle_-_Delacre.jpg/960px-Chocolate_truffle_-_Delacre.jpg';
+const pimg = p => p.image_url || PH;
+
+const API_BASE = 'https://REPLACE_WORKER_URL';
+function api(path, opts = {}) {
+  return fetch(API_BASE + '/api' + path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', ...(opts.headers||{}) }
+  }).then(async r => { const j = await r.json().catch(()=>({})); if (!r.ok) throw new Error(j.detail || j.error || 'error'); return j; });
+}
+const LS = {
+  get: (k, d) => { try { const v = localStorage.getItem('sahar_' + k); return v ? JSON.parse(v) : d; } catch(e) { return d; } },
+  set: (k, v) => localStorage.setItem('sahar_' + k, JSON.stringify(v))
+};
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 2000);
+}
+function haptic(){ try{ tg.HapticFeedback.impactOccurred('light'); }catch(e){} }
+
+// ---------- INIT ----------
+async function init() {
+  LANG = LS.get('lang', LANG);
+  if (!tg.initData) { DEMO = true; }
+  else {
+    try {
+      const j = await api('/verify', { method:'POST', body: JSON.stringify({ initData: tg.initData }) });
+      USER = j.user; IS_ADMIN = j.is_admin;
+    } catch (e) { DEMO = true; }
+  }
+  applyLang();
+  refreshFavs();
+  await loadCatalog();
+  refreshCartBadge();
+}
+function applyLang() {
+  document.getElementById('langBtn').textContent = LANG.toUpperCase();
+  document.getElementById('langVal').textContent = LANG.toUpperCase();
+  document.getElementById('tagline').textContent = t('tagline');
+  document.getElementById('searchInput').placeholder = t('search');
+  document.getElementById('hitsTitle').textContent = t('hitsTitle');
+  document.getElementById('catalogTitle').textContent = t('catalogTitle');
+  document.getElementById('favTitle').textContent = t('favTitle');
+  document.getElementById('chatTitle').textContent = t('chatTitle');
+  document.getElementById('navShop').textContent = t('navShop');
+  document.getElementById('navFav').textContent = t('navFav');
+  document.getElementById('navChat').textContent = t('navChat');
+  document.getElementById('navProfile').textContent = t('navProfile');
+  document.getElementById('myOrdersBtn').textContent = t('myOrders');
+  document.getElementById('langBtn2').textContent = t('lang');
+  document.getElementById('supportBtn').textContent = t('support');
+  document.getElementById('chatSub').textContent = t('chatSub');
+  document.getElementById('favEmpty').textContent = t('favEmpty');
+  const u = (USER && USER.first_name) || (LANG==='uz' ? 'Mehmon' : 'Гость');
+  document.getElementById('pName').textContent = u;
+  document.getElementById('pId').textContent = USER ? ('Telegram ID: ' + USER.telegram_id) : t('profileDemo');
+  document.getElementById('avatar').textContent = (u[0] || 'S').toUpperCase();
+  renderBanner(); renderChips(); renderProducts();
+}
+async function toggleLang() {
+  LANG = LANG === 'ru' ? 'uz' : 'ru';
+  applyLang();
+  LS.set('lang', LANG);
+  if (document.querySelector('#screen-chat.active')) await loadChat();
+}
+
+// ---------- BANNER ----------
+function renderBanner() {
+  const track = document.getElementById('bannerTrack');
+  track.innerHTML = BANNERS.map((b, i) => `
+    <div class="banner-slide" onclick="pickCat(${b.cat})">
+      <div class="relative h-44">
+        <img src="${b.img}" class="absolute inset-0 w-full h-full object-cover" alt="">
+        <div class="absolute inset-0" style="background:linear-gradient(90deg,rgba(20,14,8,.85) 0%,rgba(20,14,8,.35) 55%,rgba(20,14,8,0) 100%)"></div>
+        ${b.badge ? `<div class="absolute top-3 left-3 bg-[#c9a24b] text-[#231a10] text-[10px] font-extrabold tracking-widest px-2.5 py-1 rounded-md">${b.badge}</div>` : ''}
+        <div class="absolute bottom-4 left-4 right-14 text-white">
+          <div class="text-[10px] font-extrabold tracking-[0.22em] uppercase text-[#e5c886]">${LANG==='uz'?b.kicker_uz:b.kicker_ru}</div>
+          <div class="display text-[22px] font-extrabold leading-tight mt-1 drop-shadow">${LANG==='uz'?b.title_uz:b.title_ru}</div>
+        </div>
+      </div>
+    </div>`).join('');
+  document.getElementById('bannerDots').innerHTML =
+    BANNERS.map((_, i) => `<div class="bdot ${i===0?'w-5 h-1.5 bg-[#c9a24b]':'w-1.5 h-1.5 bg-white/60'} rounded-full transition-all"></div>`).join('');
+  const el = document.getElementById('bannerTrack');
+  el.onscroll = () => {
+    const idx = Math.round(el.scrollLeft / el.clientWidth);
+    document.querySelectorAll('.bdot').forEach((d, i) => {
+      d.className = 'bdot rounded-full transition-all ' + (i===idx ? 'w-5 h-1.5 bg-[#c9a24b]' : 'w-1.5 h-1.5 bg-white/60');
+    });
+  };
+  clearInterval(bannerTimer);
+  bannerTimer = setInterval(() => {
+    const idx = Math.round(el.scrollLeft / el.clientWidth);
+    const next = (idx + 1) % BANNERS.length;
+    el.scrollTo({ left: next * el.clientWidth, behavior: 'smooth' });
+  }, 4000);
+}
+
+// ---------- CATEGORIES & PRODUCTS ----------
+let allProducts = [], currentCat = 0, searchTimer = null;
+async function loadCatalog() {
+  let j;
+  try { j = await api('/catalog'); }
+  catch (e) {
+    // API ещё не подключён — показываем локальную копию каталога
+    if (typeof FALLBACK_CATEGORIES === 'undefined') { products = []; renderProducts(); return; }
+    j = { categories: FALLBACK_CATEGORIES, products: FALLBACK_PRODUCTS };
+  }
+  cats = j.categories.slice();
+  cats.unshift({id:0, name_ru:'Все', name_uz:'Barchasi'});
+  allProducts = j.products;
+  renderChips();
+  loadProducts();
+}
+async function loadProducts() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  products = allProducts.filter(p => (!currentCat || p.category_id === currentCat) &&
+    (!q || (pname(p) + ' ' + pdesc(p)).toLowerCase().includes(q)));
+  renderProducts();
+}
+function renderChips() {
+  document.getElementById('chips').innerHTML = cats.map(c =>
+    `<button onclick="pickCat(${c.id})" class="chip ${currentCat===c.id?'active':''} px-4 py-2 rounded-full text-[13px] whitespace-nowrap">${LANG==='uz'?c.name_uz:c.name_ru}</button>`).join('');
+}
+function pickCat(id) { currentCat = id; haptic(); renderChips(); loadProducts(); document.getElementById('screen-home').scrollIntoView(); }
+function onSearch() { clearTimeout(searchTimer); searchTimer = setTimeout(loadProducts, 300); }
+function imgBlock(p, cls) { return `<img src="${pimg(p)}" class="${cls}" loading="lazy" alt="${pname(p)}">`; }
+function productCard(p, wide) {
+  const liked = favSet.has(p.id);
+  const disc = p.old_price > p.price ? Math.round((1 - p.price/p.old_price)*100) : 0;
+  return `
+  <div class="card p-2.5 cursor-pointer pulse ${wide ? 'w-40 shrink-0' : ''}" onclick="openProduct(${p.id})">
+    <div class="rounded-2xl overflow-hidden relative">
+      ${imgBlock(p, 'w-full h-32 object-cover')}
+      ${disc ? `<div class="absolute top-2 left-2 bg-[#231a10] text-[#e5c886] text-[10px] font-extrabold px-2 py-0.5 rounded-md">−${disc}%</div>` : ''}
+      ${`<button onclick="event.stopPropagation();toggleFav(${p.id})" class="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 flex items-center justify-center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="${liked?'#b08d3f':'none'}" stroke="${liked?'#b08d3f':'#8b7a5c'}" stroke-width="1.8"><path d="M12 20s-7-4.6-7-9.4C5 8 7 6 9.4 6c1.2 0 2 .5 2.6 1.3C12.6 6.5 13.4 6 14.6 6 17 6 19 8 19 10.6 19 15.4 12 20 12 20Z"/></svg>
+      </button>`}
+    </div>
+    <div class="mt-2 text-[14px] font-extrabold leading-tight px-0.5">${pname(p)}</div>
+    <div class="flex items-end justify-between mt-1.5 px-0.5 pb-0.5">
+      <div>
+        <div class="text-[15px] font-extrabold gold">${money(p.price)}</div>
+        ${disc ? `<div class="text-[11px] font-bold text-[#b0a184] line-through">${money(p.old_price)}</div>` : ''}
+      </div>
+      <button onclick="event.stopPropagation();addToCart(${p.id})" class="btn-gold text-[12px] px-3 py-1.5 rounded-full">+</button>
+    </div>
+  </div>`;
+}
+function renderProducts() {
+  const hits = products.filter(p => p.old_price > p.price).slice(0, 6);
+  document.getElementById('hitsWrap').classList.toggle('hidden', hits.length === 0);
+  document.getElementById('hitsRow').innerHTML = hits.map(p => productCard(p, true)).join('');
+  document.getElementById('grid').innerHTML = products.map(p => productCard(p, false)).join('') ||
+    `<div class="col-span-2 text-center text-sm font-semibold text-[#a39274] py-14">—</div>`;
+}
+
+// ---------- FAVORITES ----------
+function refreshFavs() { favSet = new Set(LS.get('favs', [])); }
+async function toggleFav(pid) {
+  haptic();
+  favSet.has(pid) ? favSet.delete(pid) : favSet.add(pid);
+  LS.set('favs', [...favSet]);
+  renderProducts(); await renderFav();
+}
+async function renderFav() {
+  const list = allProducts.filter(p => favSet.has(p.id));
+  document.getElementById('favEmpty').classList.toggle('hidden', list.length > 0);
+  document.getElementById('favGrid').innerHTML = list.map(p => productCard(p, false)).join('');
+}
+
+// ---------- PRODUCT SHEET ----------
+function openProduct(pid) {
+  haptic();
+  const p = products.find(x => x.id === pid);
+  if (!p) return;
+  currentProduct = p;
+  const liked = favSet.has(p.id);
+  const disc = p.old_price > p.price ? Math.round((1 - p.price/p.old_price)*100) : 0;
+  document.getElementById('sheetBody').innerHTML = `
+    <div class="relative">
+      ${imgBlock(p, 'w-full h-56 object-cover rounded-t-3xl')}
+      ${disc ? `<div class="absolute top-3 left-3 bg-[#231a10] text-[#e5c886] text-[11px] font-extrabold px-2.5 py-1 rounded-md">−${disc}%</div>` : ''}
+      <button onclick="closeSheet()" class="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 flex items-center justify-center">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#231a10" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="px-5 pb-6 -mt-1">
+      <div class="display text-2xl font-extrabold leading-tight mt-4">${pname(p)}</div>
+      <div class="text-sm font-semibold text-[#6d5c3f] mt-2 leading-relaxed">${pdesc(p)}</div>
+      <div class="flex items-end justify-between mt-5">
+        <div>
+          <div class="text-2xl font-extrabold gold">${money(p.price)}</div>
+          ${p.old_price > p.price ? `<div class="text-xs font-bold text-[#b0a184] line-through">${money(p.old_price)}</div>` : ''}
+          <div class="text-[11px] font-bold text-[#a39274] mt-0.5">${p.stock > 0 ? p.stock + ' ' + t('stock') : t('out')}</div>
+        </div>
+        <div class="flex items-center gap-3">
+          <button onclick="sqty(-1)" class="qty-btn">−</button>
+          <div id="sheetQty" class="w-8 text-center text-lg font-extrabold">1</div>
+          <button onclick="sqty(1)" class="qty-btn">+</button>
+        </div>
+      </div>
+      <button onclick="addToCartSheet()" class="btn-gold w-full h-14 rounded-2xl mt-5 text-[15px] tracking-wide">${t('toCart')}</button>
+    </div>`;
+  document.getElementById('sheet').classList.remove('hidden');
+}
+let sheetQty = 1;
+function sqty(d) { haptic(); sheetQty = Math.max(1, sheetQty + d); document.getElementById('sheetQty').textContent = sheetQty; }
+function closeSheet() { document.getElementById('sheet').classList.add('hidden'); }
+function addToCartSheet() { addToCart(currentProduct.id, sheetQty); closeSheet(); }
+
+// ---------- CART ----------
+async function addToCart(pid, qty = 1) {
+  haptic();
+  const cart = LS.get('cart', []);
+  const existing = cart.find(i => i.id === pid);
+  if (existing) existing.qty += qty; else cart.push({ id: pid, qty });
+  LS.set('cart', cart);
+  toast(t('inCart')); refreshCartBadge();
+}
+function refreshCartBadge() {
+  const n = LS.get('cart', []).reduce((s, i) => s + i.qty, 0);
+  const b = document.getElementById('cartBadge');
+  b.textContent = n; b.classList.toggle('hidden', n === 0);
+}
+function openCart() {
+  haptic();
+  showOverlay(t('cart')); renderCart();
+}
+async function renderCart() {
+  const body = document.getElementById('overlayBody');
+  const items = LS.get('cart', [])
+    .map(ci => { const p = allProducts.find(x => x.id === ci.id); return p ? { id: ci.id, qty: ci.qty, product: p } : null; })
+    .filter(Boolean);
+  if (!items.length) { body.innerHTML = `<div class="text-center text-sm font-semibold text-[#a39274] py-20">${t('emptyCart')}</div>`; return; }
+  const total = items.reduce((s, i) => s + i.product.price * i.qty, 0);
+  body.innerHTML = items.map(i => `
+    <div class="card p-3 mb-2 flex items-center gap-3 fade-in">
+      ${imgBlock(i.product, 'w-16 h-16 rounded-xl object-cover')}
+      <div class="flex-1">
+        <div class="font-extrabold text-[14px] leading-tight">${pname(i.product)}</div>
+        <div class="text-[13px] font-bold gold mt-0.5">${money(i.product.price)}</div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="setQty(${i.id},${i.qty-1})" class="qty-btn">−</button>
+        <div class="w-6 text-center font-extrabold">${i.qty}</div>
+        <button onclick="setQty(${i.id},${i.qty+1})" class="qty-btn">+</button>
+      </div>
+    </div>`).join('') + `
+    <div class="card p-4 mt-4 flex items-center justify-between">
+      <span class="font-extrabold">${t('total')}</span>
+      <span class="text-xl font-extrabold gold">${money(total)}</span>
+    </div>
+    <button onclick="openCheckout()" class="btn-gold w-full h-14 rounded-2xl mt-4 font-extrabold tracking-wide">${t('checkout')}</button>`;
+}
+async function setQty(pid, qty) {
+  haptic();
+  let cart = LS.get('cart', []);
+  if (qty <= 0) cart = cart.filter(i => i.id !== pid);
+  else { const e = cart.find(i => i.id === pid); if (e) e.qty = qty; }
+  LS.set('cart', cart);
+  refreshCartBadge(); renderCart();
+}
+function openCheckout() {
+  showOverlay(t('checkout'));
+  document.getElementById('overlayBody').innerHTML = `
+    <div class="card p-4 mb-3 fade-in">
+      <div class="text-xs font-extrabold uppercase tracking-widest text-[#a39274] mb-2">${t('address')}</div>
+      <input id="ckAddr" class="w-full font-semibold text-[15px]">
+      <div class="text-xs font-extrabold uppercase tracking-widest text-[#a39274] mt-4 mb-2">${t('phone')}</div>
+      <input id="ckPhone" class="w-full font-semibold text-[15px]" value="${(USER && USER.phone) || ''}" placeholder="+998">
+    </div>
+    <div class="card p-4 mb-3">
+      <div class="text-xs font-extrabold uppercase tracking-widest text-[#a39274] mb-2">${t('comment')}</div>
+      <input id="ckComment" class="w-full font-semibold text-[15px]">
+    </div>
+    <div class="card p-4 mb-3">
+      <div class="text-xs font-extrabold uppercase tracking-widest text-[#a39274] mb-2">${t('payment')}</div>
+      ${['cash','card','click','payme'].map((m, idx) => `
+        <label class="flex items-center gap-3 py-2">
+          <input type="radio" name="pay" value="${m}" ${idx===0?'checked':''} style="accent-color:#b08d3f">
+          <span class="font-bold text-[14px]">${t('pay' + m[0].toUpperCase() + m.slice(1))}</span>
+        </label>`).join('')}
+    </div>
+    <button onclick="submitOrder()" class="btn-gold w-full h-14 rounded-2xl font-extrabold tracking-wide">${t('confirm')}</button>`;
+}
+async function submitOrder() {
+  const addr = document.getElementById('ckAddr').value.trim();
+  const phone = document.getElementById('ckPhone').value.trim();
+  if (!addr || !phone) { toast(t('address') + ' · ' + t('phone')); return; }
+  const pay = document.querySelector('input[name=pay]:checked').value;
+  if (DEMO) { toast(t('tgOnly')); return; }
+  try {
+    await api('/order', { method:'POST', body: JSON.stringify({
+      initData: tg.initData,
+      items: LS.get('cart', []),
+      address: addr, phone, comment: document.getElementById('ckComment').value.trim(), payment_method: pay }) });
+    LS.set('cart', []); refreshCartBadge(); loadCatalog();
+    showOverlay('SAHAR');
+    document.getElementById('overlayBody').innerHTML = `
+      <div class="text-center py-16 fade-in">
+        <div class="display text-4xl font-extrabold gold tracking-[0.15em]">SAHAR</div>
+        <div class="text-2xl font-extrabold mt-6">${t('orderDone')}</div>
+        <div class="text-sm font-semibold text-[#7a6a4f] mt-2">${t('orderDoneSub')}</div>
+        <button onclick="closeOverlay();nav('home')" class="btn-gold px-8 py-4 rounded-2xl mt-8 font-extrabold">${t('navShop')}</button>
+      </div>`;
+  } catch (e) { toast(e.message); }
+}
+
+// ---------- ORDERS ----------
+const statusLabel = s => t('status' + s[0].toUpperCase() + s.slice(1));
+async function openOrders() {
+  if (DEMO) { toast(t('tgOnly')); return; }
+  showOverlay(t('myOrders'));
+  const orders = await api('/my/orders?initData=' + encodeURIComponent(tg.initData));
+  const body = document.getElementById('overlayBody');
+  if (!orders.length) { body.innerHTML = `<div class="text-center text-sm font-semibold text-[#a39274] py-20">${t('noOrders')}</div>`; return; }
+  body.innerHTML = orders.map(o => `
+    <div class="card p-4 mb-3 fade-in">
+      <div class="flex items-center justify-between">
+        <span class="font-extrabold">#${o.id}</span>
+        <span class="text-[11px] font-extrabold px-2 py-1 rounded-md ${o.status==='done'?'bg-[#e8f3e6] text-[#3d7a33]':o.status==='cancelled'?'bg-[#f9e9e7] text-[#a3402f]':'bg-[#f5efe3] text-[#8b7a5c]'}">${statusLabel(o.status)}</span>
+      </div>
+      <div class="text-xs font-semibold text-[#8b7a5c] mt-1">${(o.created_at||'').slice(0,16)}</div>
+      <div class="mt-2 text-[13px] font-semibold leading-relaxed">${o.items.map(i => `• ${LANG==='uz'?(i.name_uz||i.name_ru):i.name_ru} ×${i.qty}`).join('<br>')}</div>
+      <div class="flex justify-between mt-3 pt-3 border-t border-[#f0e9dd]">
+        <span class="font-bold text-[13px]">${t('total')}</span>
+        <span class="font-extrabold gold">${money(o.total)}</span>
+      </div>
+    </div>`).join('');
+}
+
+// ---------- CHAT ----------
+async function loadChat() {
+  if (DEMO) { document.getElementById('chatBox').innerHTML = `<div class="text-center text-sm font-semibold text-[#a39274] py-10">${t('tgOnly')}</div>`; return; }
+  const msgs = await api('/support?initData=' + encodeURIComponent(tg.initData));
+  document.getElementById('chatBox').innerHTML = msgs.map(m => `
+    <div class="max-w-[80%] ${m.from_admin ? 'self-end bg-[#231a10] text-white' : 'self-start card'} px-4 py-2.5 rounded-2xl text-[14px] font-semibold fade-in">${m.text.replace(/</g,'&lt;')}</div>`).join('') ||
+    `<div class="text-center text-sm font-semibold text-[#a39274] py-10">${t('chatSub')}</div>`;
+}
+async function sendChat() {
+  if (DEMO) { toast(t('tgOnly')); return; }
+  const el = document.getElementById('chatInput');
+  const text = el.value.trim();
+  if (!text) return;
+  el.value = ''; haptic();
+  await api('/support', { method:'POST', body: JSON.stringify({ initData: tg.initData, text }) });
+  await loadChat();
+}
+
+// ---------- NAV ----------
+function nav(s) {
+  haptic();
+  document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+  document.getElementById('screen-' + s).classList.add('active');
+  document.querySelectorAll('.navbtn').forEach(b => {
+    b.classList.toggle('text-[#b08d3f]', b.dataset.s === s);
+    b.classList.toggle('text-[#707070]', b.dataset.s !== s);
+  });
+  document.getElementById('searchWrap').classList.toggle('hidden', s !== 'home');
+  window.scrollTo(0, 0);
+  if (s === 'fav') renderFav();
+  if (s === 'chat') { loadChat(); clearInterval(chatTimer); chatTimer = setInterval(loadChat, 8000); }
+  else clearInterval(chatTimer);
+}
+function showOverlay(title) {
+  document.getElementById('overlayTitle').textContent = title;
+  document.getElementById('overlay').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+function closeOverlay() {
+  document.getElementById('overlay').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+document.querySelectorAll('.navbtn').forEach(b => { b.classList.add('text-[#707070]'); });
+
+init();
+</script>
+</body>
+</html>

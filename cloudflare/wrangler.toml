@@ -1,0 +1,21 @@
+name = "sahar-shop"
+main = "worker.js"
+compatibility_date = "2024-09-01"
+
+[vars]
+# Telegram ID владельцев через запятую (админка + уведомления)
+OWNER_IDS = "[6999767433, 8396883978]"
+# Публичный адрес витрины (GitHub Pages) — обновить после включения Pages
+WEBAPP_URL = "https://REPLACE_GITHUB_PAGES_URL/"
+# Секретная часть адреса вебхука бота
+HOOK_SECRET = "REPLACE_HOOK_SECRET"
+
+# BOT_TOKEN задаётся командой: npx wrangler secret put BOT_TOKEN
+# KV-пространство создастся командой: npx wrangler kv namespace create SHOP
+# затем впишите его id сюда:
+# [[kv_namespaces]]
+# binding = "SHOP"
+# id = "REPLACE_KV_ID"
+[[kv_namespaces]]
+binding = "SHOP"
+id = "REPLACE_KV_ID"
