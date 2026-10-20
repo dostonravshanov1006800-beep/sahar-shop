@@ -219,9 +219,9 @@ nav.kb{transform:translateY(110%)}
 .sumrow{display:flex;justify-content:space-between;font-size:13.5px;font-weight:600;color:var(--muted);padding:5px 2px}
 .sumrow.tot{font-weight:800;color:var(--text);font-size:16px;border-top:1px solid var(--hair);margin-top:6px;padding-top:12px}
 /* сообщения: вкладки */
-.mtabs{display:flex;background:var(--field);border-radius:16px;padding:3px;margin-top:12px}
-.mtab{flex:1;border:none;background:transparent;border-radius:10px;padding:8px 0;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;transition:all .2s}
-.mtab.on{background:var(--card);color:var(--text);box-shadow:var(--shadow)}
+.mtabs{display:flex;background:var(--field);border-radius:14px;padding:3px;margin-top:12px}
+.mtab{flex:1;border:none;background:transparent;border-radius:11px;padding:8px 0;font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer;transition:all .2s}
+.mtab.on{background:var(--text);color:var(--bg);box-shadow:0 2px 8px rgba(56,36,20,.18)}
 .notif{display:flex;gap:11px;padding:13px 2px;border-bottom:1px solid var(--hair);align-items:flex-start}
 .notif:last-child{border-bottom:none}
 .notif .nic{width:36px;height:36px;border-radius:11px;background:var(--caramel-soft);color:var(--pri);display:flex;align-items:center;justify-content:center;flex:none}
@@ -230,12 +230,17 @@ nav.kb{transform:translateY(110%)}
 .notif .nat{font-size:10px;color:var(--soft);margin-top:2px;font-weight:600}
 /* чат */
 #chatBox{display:flex;flex-direction:column;gap:7px;padding:8px 0 14px}
-.day-sep{align-self:center;font-size:11px;font-weight:700;color:var(--muted);background:var(--cream);border-radius:12px;padding:4px 12px;margin:4px 0}
-.bub{max-width:78%;padding:10px 14px;border-radius:18px;font-size:15px;font-weight:500;animation:fadeUp .25s ease;letter-spacing:-.01em;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
+.day-sep{align-self:center;font-size:10.5px;font-weight:700;color:var(--muted);opacity:.75;padding:6px 0 2px;letter-spacing:.04em}
+.msg-row{display:flex;gap:7px;align-items:flex-end;animation:fadeUp .25s ease}
+.msg-row.them{align-self:flex-start}
+.msg-row.me{align-self:flex-end;justify-content:flex-end}
+.bava{width:26px;height:26px;border-radius:50%;object-fit:cover;flex:none;margin-bottom:3px;box-shadow:0 0 0 1px var(--hair)}
+.bub{max-width:82%;padding:10px 14px;border-radius:18px;font-size:15px;font-weight:500;letter-spacing:-.01em;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
+.msg-row.them .bub{border-bottom-left-radius:6px}
 .bub.photo{padding:5px}
 .bub.photo .bt{padding:2px 4px 1px}
-.bub.me{align-self:flex-end;background:var(--pri);color:var(--pri-fg);border-bottom-right-radius:6px}
-.bub.them{align-self:flex-start;background:var(--cream);color:var(--text);border-bottom-left-radius:6px;border:1px solid var(--hair)}
+.bub.me{background:var(--pri);color:var(--pri-fg);border-bottom-right-radius:6px}
+.bub.them{background:var(--cream);color:var(--text);border:1px solid var(--hair)}
 .bub .bt{display:flex;justify-content:flex-end;align-items:center;gap:4px;font-size:10px;opacity:.65;font-weight:700;margin-top:3px}
 .bub .tick{font-size:10px;letter-spacing:-2px}
 .bub img.bphoto{width:min(70vw,280px);max-height:280px;object-fit:cover;border-radius:14px;display:block;cursor:pointer}
@@ -280,8 +285,8 @@ nav.kb{transform:translateY(110%)}
 .photo-view{position:fixed;inset:0;z-index:120;background:rgba(20,12,8,.95);display:flex;align-items:center;justify-content:center;padding:24px}
 .photo-view img{max-width:100%;max-height:100%;border-radius:16px}
 .pv-close{position:absolute;top:calc(env(safe-area-inset-top,0px) + 14px);right:14px;width:44px;height:44px;border-radius:50%;border:none;background:rgba(255,255,255,.16);color:#fff;font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.qr-chips{display:flex;flex-wrap:wrap;gap:7px;padding:4px 0 8px}
-.qr-chip{padding:8px 13px;background:var(--card);border:1.5px solid var(--hair);color:var(--text);border-radius:19px;font-size:12px;font-weight:700;cursor:pointer}
+.qr-chips{display:flex;flex-wrap:wrap;gap:6px;padding:2px 0 10px}
+.qr-chip{padding:7px 12px;background:transparent;border:1px solid var(--hair);color:var(--muted);border-radius:15px;font-size:11.5px;font-weight:700;cursor:pointer;letter-spacing:0}
 .qr-chip:active{border-color:var(--caramel-deep)}
 .chat-input{display:flex;gap:8px;padding:10px 0 0;flex:none;align-items:flex-end}
 .chat-input textarea{flex:1;background:var(--card);border:1px solid var(--hair);border-radius:20px;padding:12px 16px;min-height:46px;max-height:92px;color:var(--text);font:500 15px inherit;font-family:inherit;outline:none;resize:none;overflow-y:auto;line-height:20px}
@@ -1206,7 +1211,7 @@ async function loadChat(){
         ticks = `<span class="tick">${read ? '✓✓' : '✓'}</span>`;
       }
       const u = escHtml(m.photo_url || '');
-      html += `<div class="bub ${mine?'me':'them'}${u&&!m.text?' photo':''}">${u?`<img class="bphoto" src="${u}" onclick="viewPhoto('${u}')">`:''}${m.text?escHtml(m.text):''}<div class="bt"><span>${(m.at||'').slice(11,16)}</span>${ticks}</div></div>`;
+      html += `<div class="msg-row ${mine?'me':'them'}">${mine?'':`<img class="bava" src="assets/bot-avatar.jpg" alt="">`}<div class="bub ${mine?'me':'them'}${u&&!m.text?' photo':''}">${u?`<img class="bphoto" src="${u}" onclick="viewPhoto('${u}')">`:''}${m.text?escHtml(m.text):''}<div class="bt"><span>${(m.at||'').slice(11,16)}</span>${ticks}</div></div></div>`;
     }
     box.innerHTML = html || `<div class="empty" style="padding:26px 8px">${t('chatSub')}</div>`;
     box.scrollTop = box.scrollHeight;
