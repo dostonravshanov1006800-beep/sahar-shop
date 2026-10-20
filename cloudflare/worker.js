@@ -148,6 +148,7 @@ const TEXTS = {
   },
   buyerStart: shopOpen => CE_BRAND() + ' <b>SAHAR · премиальные сладости</b>\nКонфеты, трюфели и подарочные наборы ручной работы.\n' + tgE(CE.cis, '🌐') + ' Доставка по СНГ · ' + tgE(CE.gift, '🎁') + ' Красивая упаковка\nНажмите «Открыть магазин», выберите сладости и оформите заказ за пару минут.' + (shopOpen ? '' : '\n\n' + tgE(CE.lock, '🔒') + ' <b>Магазин сейчас закрыт.</b> Заказы откроются в ближайшее время. Напишите нам, и мы ответим.'),
   ownerStart: () => CE_BRAND() + ' <b>SAHAR · панель владельца</b>\nЗаказы и сообщения клиентов приходят сюда. Нажмите «Последние заказы» или откройте CRM.',
+  phoneShared: () => tgE(CE.phone, '📞') + ' <b>Номер получен!</b>\nОн автоматически подставлен в форму оформления заказа. Если окно магазина открыто — обновите страницу.',
   help: () => tgE(CE.help, '❓') + ' <b>Как заказать</b>\n1. Нажмите «Открыть магазин».\n2. Добавьте сладости в корзину.\n3. Оформите заказ: имя, телефон, адрес.\n4. Владелец свяжется с вами и подтвердит заказ.\n\nВопросы? Просто напишите сюда, мы ответим.',
   orderAccepted: id => tgE(CE.accepted, '✅') + ' <b>Заказ #' + id + ' принят</b>\nСпасибо! Владелец получил заявку и скоро свяжется с вами.',
   buyerOrdersEmpty: () => 'У вас пока нет заказов. Нажмите «Открыть магазин».',
@@ -407,6 +408,10 @@ async function handle(request, env) {
             '\n\n' + tgE(CE.time, '⏰') + ' Статус — в разделе «Мои заказы» / команда /orders.' });
       } catch (e) {}
       return json({ ok: true, order_id: id });
+    }
+    if (p === '/api/account') {
+      if (!user) return json({ ok: false, error: 'forbidden' }, 403);
+      return json({ ok: true, phone: (await J.get(env, 'contact:' + user.id)) || '' });
     }
     if (p === '/api/my/orders' && request.method === 'GET') {
       if (!user) return json({ ok: false, error: 'forbidden' }, 403);
@@ -808,12 +813,17 @@ async function sendOrders(env, tid, own = false) {
 
 async function handleUpdate(env, u) {
   try { await ensureProfile(env); } catch (e) {}
-  const SHOP_URL = env.WEBAPP_URL + '?v=19';
+  const SHOP_URL = env.WEBAPP_URL + '?v=20';
   const shopBtn = (t) => ({ text: t, icon_custom_emoji_id: CE.shop, web_app: { url: SHOP_URL } });
   if (u.message) {
     const m = u.message, tid = m.from.id;
     const txt = (m.text || '').trim();
     const isCmd = txt.startsWith('/');
+    if (m.contact && m.contact.user_id === tid) {
+      try { await J.put(env, 'contact:' + tid, m.contact.phone_number || ''); } catch (e) {}
+      try { await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text: TEXTS.phoneShared() }); } catch (e) {}
+      return;
+    }
     // ---------- ВЛАДЕЛЕЦ ----------
     if (await isOwner(env, tid)) {
       if (isCmd && ['/start', '/orders', '/cancel', '/help'].some(c => txt.startsWith(c))) {
