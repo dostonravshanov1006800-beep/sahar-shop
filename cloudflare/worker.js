@@ -469,7 +469,7 @@ async function handle(request, env) {
         if (b.id) { const old = await J.get(env, 'cat:' + b.id); if (!old) return json({ ok: false }, 404); await J.put(env, 'cat:' + b.id, { ...old, ...b, id: old.id }); }
         else {
           const id = await J.get(env, 'next_cat', 1);
-          await J.put(env, 'cat:' + id, { id, name_ru: b.name_ru || '', name_en: b.name_en || b.name_ru || '', name_uz: b.name_uz || '', hidden: false, sort: b.sort | 0 });
+          await J.put(env, 'cat:' + id, { id, name_ru: b.name_ru || '', name_en: b.name_en || b.name_ru || '', name_uz: b.name_uz || '', icon: b.icon || '', hidden: false, sort: b.sort | 0 });
           const ids = await J.get(env, 'cat_ids', []); ids.push(id); await J.put(env, 'cat_ids', ids);
           await J.put(env, 'next_cat', id + 1);
         }
@@ -492,7 +492,7 @@ async function handle(request, env) {
         if (b.id) { const old = await J.get(env, 'banner:' + b.id); if (!old) return json({ ok: false }, 404); await J.put(env, 'banner:' + b.id, { ...old, ...b, id: old.id }); }
         else {
           const id = await J.get(env, 'next_banner', 1);
-          await J.put(env, 'banner:' + id, { id, image_url: b.image_url || '', title_ru: b.title_ru || '', title_en: b.title_en || '', sub_ru: b.sub_ru || '', sub_en: b.sub_en || '', link: b.link || '' });
+          await J.put(env, 'banner:' + id, { id, image_url: b.image_url || '', title_ru: b.title_ru || '', title_en: b.title_en || '', sub_ru: b.sub_ru || '', sub_en: b.sub_en || '', btn_ru: b.btn_ru || '', btn_en: b.btn_en || '', btn_uz: b.btn_uz || '', link: b.link || '' });
           const ids = await J.get(env, 'banner_ids', []); ids.push(id); await J.put(env, 'banner_ids', ids);
           await J.put(env, 'next_banner', id + 1);
         }
@@ -574,7 +574,7 @@ async function handle(request, env) {
         const clIds = (await J.get(env, 'client_ids', [])).slice(0, 40); // лимит подзапросов Worker
         let sent = 0, failed = 0;
         for (const tid of clIds) {
-          const r = await tgApi(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text: '🤍 <b>SAHAR</b>\n' + esc(text), reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=10' } }]] } });
+          const r = await tgApi(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text: '🤍 <b>SAHAR</b>\n' + esc(text), reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=11' } }]] } });
           if (r && r.ok) sent++; else failed++;
         }
         return json({ ok: true, sent, failed });
@@ -634,10 +634,10 @@ async function handleUpdate(env, u) {
         await tgApi(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML',
           text: '👑 <b>SAHAR — панель владельца</b>\n\n🆔 Ваш Telegram ID: <code>' + tid + '</code>\n/orders — последние заказы\nЛюбое сообщение покупателя приходит сюда.',
           reply_markup: { inline_keyboard: [
-            [{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=10' } }],
-            [{ text: '🎛 Админ-панель', web_app: { url: env.WEBAPP_URL + 'admin.html?v=10' } }],
+            [{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=11' } }],
+            [{ text: '🎛 Админ-панель', web_app: { url: env.WEBAPP_URL + 'admin.html?v=11' } }],
           ] } });
-        await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=10' } } });
+        await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=11' } } });
         return;
       }
       if (m.text && m.text.startsWith('/orders')) { await sendOrders(env, tid, false); return; }
@@ -667,8 +667,8 @@ async function handleUpdate(env, u) {
     if (m.text && m.text.startsWith('/start')) {
       await tgApi(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML',
         text: 'Добро пожаловать в <b>SAHAR</b> ✦\nАвторские сладости ручной работы: трюфели, шоколад, восточные десерты и подарочные наборы.\n\nДоставка по странам СНГ. Откройте магазин и закажите за пару касаний.',
-        reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=10' } }]] } });
-      await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=10' } } });
+        reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=11' } }]] } });
+      await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=11' } } });
       return;
     }
     if (m.contact) {
@@ -699,7 +699,7 @@ async function handleUpdate(env, u) {
         '💬 <b>Сообщение от клиента</b>\n' + esc(msgText || '(вложение)') + '\n👤 ' + esc(m.from.first_name || '') + ' · <a href="tg://user?id=' + tid + '">' + tid + '</a>',
         { inline_keyboard: [[{ text: '💬 Ответить', callback_data: 'rep:' + tid }]] });
     }
-    await tgApi(env, 'sendMessage', { chat_id: tid, text: '✅ Сообщение отправлено. Мы ответим здесь и в разделе «Сообщения» магазина.', reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=10' } }]] } });
+    await tgApi(env, 'sendMessage', { chat_id: tid, text: '✅ Сообщение отправлено. Мы ответим здесь и в разделе «Сообщения» магазина.', reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=11' } }]] } });
     return;
   }
   if (u.callback_query) {

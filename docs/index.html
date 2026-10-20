@@ -66,16 +66,16 @@ header{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--bg) 9
 .search input::placeholder{color:var(--soft)}
 /* баннер */
 #banners{margin:14px -14px 0;overflow-x:auto;scroll-snap-type:x mandatory;display:flex;scrollbar-width:none}
-.banner{flex:none;width:100%;scroll-snap-align:center;border-radius:18px;overflow:hidden;height:128px;position:relative;background:var(--skel)}
+.banner{flex:none;width:100%;scroll-snap-align:center;border-radius:24px;overflow:hidden;height:200px;position:relative;background:var(--skel)}
 .banner img{width:100%;height:100%;object-fit:cover;display:block}
-.banner .btext{position:absolute;left:0;right:0;bottom:0;padding:34px 14px 12px;background:linear-gradient(transparent,rgba(20,10,5,.68));color:#fff}
-.banner .bt{font-size:16px;font-weight:800;letter-spacing:-.01em;line-height:1.2}
-.banner .bs{font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.85);margin-top:3px}
-.banner .bcta{margin-top:8px;display:inline-flex;align-items:center;padding:7px 13px;border-radius:17px;background:#FFFFFF;color:#4B2B20;font-size:11.5px;font-weight:800;border:none;cursor:pointer}
+.banner .btext{position:absolute;left:0;right:0;bottom:0;padding:64px 16px 14px;background:linear-gradient(transparent,rgba(15,8,4,.74));color:#fff;text-align:left}
+.banner .bt{font-size:17px;font-weight:800;letter-spacing:-.01em;line-height:1.22;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.banner .bs{font-size:11px;font-weight:600;letter-spacing:0;text-transform:none;color:rgba(255,255,255,.9);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.banner .bcta{margin-top:9px;display:inline-flex;align-items:center;padding:8px 15px;border-radius:14px;background:#FFFFFF;color:#4B2B20;font-size:11.5px;font-weight:800;border:none;cursor:pointer}
 /* категории: плитки */
-#catgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px 6px;margin-top:18px}
+#catgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px 8px;margin-top:18px}
 .catt{display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;border:none;background:transparent;padding:0}
-.catt .cic{width:52px;height:52px;border-radius:17px;background:var(--caramel-soft);display:flex;align-items:center;justify-content:center;color:var(--pri);transition:transform .2s cubic-bezier(.34,1.56,.64,1)}
+.catt .cic{width:56px;height:56px;border-radius:18px;background:var(--caramel-soft);display:flex;align-items:center;justify-content:center;font-size:32px;line-height:1;transition:transform .2s cubic-bezier(.34,1.56,.64,1)}
 .catt:active .cic{transform:scale(.88)}
 .catt .cnm{font-size:10px;font-weight:600;color:var(--muted);text-align:center;line-height:1.25}
 .catt.on .cnm{color:var(--text);font-weight:700}
@@ -240,8 +240,7 @@ nav.kb{transform:translateY(110%)}
   <header>
     <div class="hrow">
       <div class="brand">
-        <span class="bflower"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8.5c1.8-3 5-2 5 .5 0 2.6-2.6 4-5 4s-5-1.4-5-4c0-3 3.2-3.5 5-.5z"/><path d="M12 9v9"/><path d="M12 14c1.2 0 2-1 2-2"/><path d="M12 11.5c-1.2 0-2-1-2-2"/></svg></span>
-        <span class="bt"><span class="logo">SAHAR</span><div class="sub">Конфеты · Сладости · Подарки</div></span>
+        <span class="bt"><span class="logo">SAHAR</span></span>
       </div>
       <div class="hbtns">
         <button class="icon-btn press-h" onclick="nav('chat')" aria-label="notifications">
@@ -411,7 +410,15 @@ function renderCountry(){
   $('cCode').textContent = S.country ? S.country.code : '—';
 }
 function renderBanners(){
-  $('banners').innerHTML = (S.banners||[]).map(b=>`<div class="banner"><img src="${b.image_url}" alt="" loading="lazy"><div class="btext"><div class="bt">${b.title_ru||''}</div><div class="bs">${b.sub_ru||''}</div><button class="bcta press-h" onclick="goCatalog()">${t('goCatalog')}</button></div></div>`).join('');
+  $('banners').innerHTML = (S.banners||[]).map(b=>{
+    const l = String(b.link||''); let fn = 'goCatalog()';
+    if (l.startsWith('cat:')) fn = 'pickCat(' + (Number(l.slice(4))||0) + ')';
+    else if (l.startsWith('prod:')) fn = 'openProduct(' + (Number(l.slice(5))||0) + ')';
+    const title = S.lang==='en' ? (b.title_en||b.title_ru||'') : (S.lang==='uz' ? (b.title_ru||'') : (b.title_ru||''));
+    const sub = S.lang==='en' ? (b.sub_en||b.sub_ru||'') : (S.lang==='uz' ? (b.sub_ru||'') : (b.sub_ru||''));
+    const btn = S.lang==='en' ? (b.btn_en||'To catalog') : (S.lang==='uz' ? (b.btn_uz||'Katalogga') : (b.btn_ru||'Перейти в каталог'));
+    return `<div class="banner"><img src="${escHtml(b.image_url||'')}" alt="" loading="lazy"><div class="btext"><div class="bt">${escHtml(title)}</div><div class="bs">${escHtml(sub)}</div><button class="bcta press-h" onclick="${fn}">${escHtml(btn)}</button></div></div>`;
+  }).join('');
 }
 const CAT_ICON_SVG = {
   bar:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 10V8.5A1.5 1.5 0 0 1 6.5 7h11A1.5 1.5 0 0 1 19 8.5V10"/><path d="M4 10h16v4.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M7 16.5v2M17 16.5v2"/></svg>',
@@ -424,6 +431,16 @@ const CAT_ICON_SVG = {
   sparkle:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v5M12 15v5M4 12h5M15 12h5"/><path d="m6.5 6.5 3 3M14.5 14.5l3 3M17.5 6.5l-3 3M9.5 14.5l-3 3"/></svg>',
   pct:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5 5 19"/><circle cx="7.5" cy="7.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/></svg>',
 };
+function catEmojiFor(c){
+  if (c && c.icon) return c.icon;
+  const n = (c && c.name_ru || '').toLowerCase();
+  if (n.includes('трюф')) return '🍫';
+  if (n.includes('шокол')) return '🍬';
+  if (n.includes('восточ') || n.includes('рахат') || n.includes('лукум')) return '🍯';
+  if (n.includes('десерт')) return '🧁';
+  if (n.includes('подароч') || n.includes('набор')) return '🎁';
+  return '✨';
+}
 function catIconFor(name){
   const n = (name||'').toLowerCase();
   if (n.includes('шокол') || n.includes('choc')) return 'bar';
@@ -434,10 +451,10 @@ function catIconFor(name){
   return 'candy';
 }
 function renderCatGrid(){
-  const tiles = S.cats.slice(0,6).map(c=>({ nm:(S.lang==='en'?c.name_en:(S.lang==='uz'?c.name_uz:c.name_ru)), ic:catIconFor(c.name_ru), on:S.cat===c.id, fn:`pickCat(${c.id})` }));
-  tiles.push({ nm:t('news'), ic:'sparkle', on:S.badge==='new', fn:"pickBadge('new')" });
-  tiles.push({ nm:t('sales'), ic:'pct', on:S.badge==='sale', fn:"pickBadge('sale')" });
-  $('catgrid').innerHTML = tiles.map(x=>`<button class="catt press-h ${x.on?'on':''}" onclick="${x.fn}"><span class="cic">${CAT_ICON_SVG[x.ic]}</span><span class="cnm">${x.nm}</span></button>`).join('');
+  const tiles = S.cats.slice(0,6).map(c=>({ nm:(S.lang==='en'?c.name_en:(S.lang==='uz'?c.name_uz:c.name_ru)), ic:catEmojiFor(c), on:S.cat===c.id, fn:`pickCat(${c.id})` }));
+  tiles.push({ nm:t('news'), ic:'✨', on:S.badge==='new', fn:"pickBadge('new')" });
+  tiles.push({ nm:t('sales'), ic:'🏷️', on:S.badge==='sale', fn:"pickBadge('sale')" });
+  $('catgrid').innerHTML = tiles.map(x=>`<button class="catt press-h ${x.on?'on':''}" onclick="${x.fn}"><span class="cic">${x.ic}</span><span class="cnm">${x.nm}</span></button>`).join('');
 }
 function pickCat(id){ haptic(); S.cat=id; S.badge=''; renderCatGrid(); renderSections(); window.scrollTo({top:0,behavior:'smooth'}); }
 function pickBadge(b){ haptic(); S.badge = S.badge===b ? '' : b; S.cat=0; renderCatGrid(); renderSections(); window.scrollTo({top:0,behavior:'smooth'}); }
