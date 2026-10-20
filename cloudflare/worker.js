@@ -124,6 +124,34 @@ async function tgApi(env, method, body) {
   })).json();
 }
 
+// ---------- Премиум-эмодзи (только бот; в Mini App эти ID не использовать) ----------
+const CE = {
+  order: '5920332557466997677', stNew: '5895669571058142797', stShip: '5904650558127478452',
+  stDone: '5774022692642492953', stCancel: '5774077015388852135', chat: '6030622631818956594',
+  reply: '6039539366177541657', money: '5904359114531675993', addr: '6042011682497106307',
+  client: '6035084557378654059', phone: '6039605143601680423', gift: '6032644646587338669',
+  brand: '5938368005611195877'
+};
+const tgE = (id, fb) => '<tg-emoji emoji-id="' + id + '">' + fb + '</tg-emoji>';
+function stripPremium(t){ return String(t || '').replace(/<tg-emoji emoji-id="\d+">([\s\S]*?)<\/tg-emoji>/g, '$1'); }
+function stripPremiumKb(kb){ if (!kb || !kb.inline_keyboard) return kb;
+  const c = JSON.parse(JSON.stringify(kb));
+  for (const row of (c.inline_keyboard || [])) for (const btn of row) delete btn.icon_custom_emoji_id;
+  return c; }
+async function tgSend(env, method, params) {
+  const r = await tgApi(env, method, params);
+  if (r && r.ok === false && params && (params.text || params.caption) && /<tg-emoji/.test(params.text || params.caption || '')) {
+    const p2 = { ...params };
+    if (p2.text) p2.text = stripPremium(p2.text);
+    if (p2.caption) p2.caption = stripPremium(p2.caption);
+    if (p2.reply_markup) p2.reply_markup = stripPremiumKb(p2.reply_markup);
+    return await tgApi(env, method, p2);
+  }
+  return r;
+}
+const CE_BRAND = () => tgE(CE.brand, '❤️');
+const CE_STAT = s => ({ new: tgE(CE.stNew, '🆕'), awaiting_payment: '💳', paid: tgE(CE.money, '💰'), confirmed: '✅', packing: '📦', shipping: tgE(CE.stShip, '🧭'), delivered: tgE(CE.stDone, '✅'), cancelled: tgE(CE.stCancel, '❌'), refunded: '↩️' }[s] || '');
+
 // ---------- Статусы заказов ----------
 const STATUSES = ['new', 'awaiting_payment', 'paid', 'confirmed', 'packing', 'shipping', 'delivered', 'cancelled', 'refunded'];
 const STATUS_RU = { new: 'Новый', awaiting_payment: 'Ожидает оплату', paid: 'Оплачен', confirmed: 'Подтверждён', packing: 'Собирается', shipping: 'В доставке', delivered: 'Доставлен', cancelled: 'Отменён', refunded: 'Возврат' };
@@ -144,19 +172,23 @@ async function orderText(env, o) {
   const cur = o.currency || 'USD';
   const items = o.items.map(i => '• ' + esc(i.name_ru) + ' ×' + i.qty).join('\n');
   const dl = o.delivery === 'courier' ? 'Курьер' : 'Почта/служба';
-  return '🍬 <b>SAHAR — заказ #' + o.id + '</b>\n' + items + '\n\n🚚 Доставка: ' + dl,
-    '\n\n💰 <b>' + esc(o.total_local || ('$' + o.total_usd)) + '</b>' + (cur !== 'USD' ? ' (~$' + o.total_usd + ')' : '') + ' · ' + PAY_TITLE(o.payment_method) +
-    '\n📍 ' + esc([o.country_name, o.city, o.address].filter(Boolean).join(', ')) +
+  const amt = o.total_local || ('$' + (o.total_usd !== undefined ? o.total_usd : o.grand_usd !== undefined ? o.grand_usd : '—'));
+  const gift = o.gift && (o.gift.packaging || o.gift.card || o.gift.text);
+  return tgE(CE.order, '🏪') + ' <b>SAHAR — заказ #' + o.id + '</b>\n' + items + '\n\n🚚 Доставка: ' + dl +
+    '\n\n' + tgE(CE.money, '💰') + ' <b>' + esc(amt) + '</b>' + (cur !== 'USD' && o.total_usd !== undefined ? ' (~$' + o.total_usd + ')' : '') + ' · ' + PAY_TITLE(o.payment_method) +
+    '\n' + tgE(CE.addr, '📍') + ' ' + esc([o.country_name, o.city, o.address].filter(Boolean).join(', ')) +
     (o.tracking ? '\n🔖 Трек: ' + esc(o.tracking) : '') +
-    '\n👤 ' + esc(o.client_name || o.client.first_name || '') + ' · <a href="tg://user?id=' + o.client.telegram_id + '">' + o.client.telegram_id + '</a>' +
-    (o.phone ? '\n📞 ' + esc(o.phone) : '') +
+    '\n' + tgE(CE.client, '👤') + ' ' + esc(o.client_name || o.client.first_name || '') + ' · <a href="tg://user?id=' + o.client.telegram_id + '">' + o.client.telegram_id + '</a>' +
+    (o.phone ? '\n' + tgE(CE.phone, '📞') + ' ' + esc(o.phone) : '') +
+    (gift ? '\n' + tgE(CE.gift, '🎁') + ' Подарочная упаковка' + (o.gift.text ? ' · «' + esc(String(o.gift.text).slice(0, 100)) + '»' : '') : '') +
     (o.comment ? '\n💬 ' + esc(o.comment) : '');
 }
 async function notifyOwners(env, text, kb) {
   for (const oid of await ownerIds(env)) {
-    await tgApi(env, 'sendMessage', { chat_id: oid, text, parse_mode: 'HTML', disable_web_page_preview: true, ...(kb ? { reply_markup: kb } : {}) });
+    await tgSend(env, 'sendMessage', { chat_id: oid, text, parse_mode: 'HTML', disable_web_page_preview: true, ...(kb ? { reply_markup: kb } : {}) });
   }
 }
+const replyKb = tid => ({ inline_keyboard: [[{ text: 'Ответить', icon_custom_emoji_id: CE.reply, callback_data: 'rep:' + tid }]] });
 
 // ---------- API ----------
 async function handle(request, env) {
@@ -309,9 +341,9 @@ async function handle(request, env) {
       try {
         const pm = (s.payments || []).find(x => x.id === order.payment_method) || null;
         const instr = pm ? ('' + (pm.instr_ru || '')) : '';
-        await tgApi(env, 'sendMessage', { chat_id: user.id, parse_mode: 'HTML',
-          text: '🤍 <b>SAHAR</b> — заказ <b>#' + id + '</b> принят!\n\n' + orderItems.map(i => '• ' + esc(i.name_ru) + ' ×' + i.qty).join('\n') +
-            '\n\n💰 <b>' + esc(order.total_local) + '</b>\n📍 ' + esc([c.name_ru, city, address].filter(Boolean).join(', ')) +
+        await tgSend(env, 'sendMessage', { chat_id: user.id, parse_mode: 'HTML',
+          text: CE_BRAND() + ' <b>SAHAR — заказ #' + id + ' принят!</b>\n\n' + orderItems.map(i => '• ' + esc(i.name_ru) + ' ×' + i.qty).join('\n') +
+            '\n\n' + tgE(CE.money, '💰') + ' <b>' + esc(order.total_local || '—') + '</b>\n' + tgE(CE.addr, '📍') + ' ' + esc([c.name_ru, city, address].filter(Boolean).join(', ')) +
             (instr ? '\n\n💳 ' + esc(instr) + '\nПосле оплаты пришлите, пожалуйста, фото чека в этот чат.' : '') +
             '\n\n⏳ Статус — в разделе «Мои заказы».' });
       } catch (e) {}
@@ -350,8 +382,8 @@ async function handle(request, env) {
       const clIds = await J.get(env, 'client_ids', []);
       if (!clIds.includes(user.id)) { clIds.push(user.id); await J.put(env, 'client_ids', clIds); }
       await notifyOwners(env,
-        (photo_url ? '🖼 <b>Фото от клиента</b>\n' : '💬 <b>Сообщение от клиента</b>\n') + esc(text || '(фото)') + '\n👤 ' + esc(user.first_name || '') + ' · <a href="tg://user?id=' + user.id + '">' + user.id + '</a>',
-        { inline_keyboard: [[{ text: '💬 Ответить', callback_data: 'rep:' + user.id }]] });
+        (photo_url ? '🖼 <b>Фото от клиента</b>\n' : tgE(CE.chat, '💬') + ' <b>Сообщение от клиента</b>\n') + esc(text || '(фото)') + '\n' + tgE(CE.client, '👤') + ' ' + esc(user.first_name || '') + ' · <a href="tg://user?id=' + user.id + '">' + user.id + '</a>',
+        replyKb(user.id));
       return json({ ok: true });
     }
     if (p === '/api/upload' && request.method === 'POST') {
@@ -414,8 +446,8 @@ async function handle(request, env) {
             }
           }
           o.status = status; (o.history = o.history || []).push({ status, at: new Date().toISOString() });
-          try { await tgApi(env, 'sendMessage', { chat_id: o.client.telegram_id, parse_mode: 'HTML',
-            text: '🤍 <b>SAHAR</b> — статус заказа <b>#' + o.id + '</b>\n\n' + STATUS_RU[status] + (status === 'shipping' && o.tracking ? '\n🔖 Трек-номер: <code>' + esc(o.tracking) + '</code>' : '') }); } catch (e) {}
+          try { await tgSend(env, 'sendMessage', { chat_id: o.client.telegram_id, parse_mode: 'HTML',
+            text: CE_BRAND() + ' <b>SAHAR — статус заказа #' + o.id + '</b>\n\n' + CE_STAT(status) + ' <b>' + (STATUS_RU[status] || '—') + '</b>' + (status === 'shipping' && o.tracking ? '\n🔖 Трек-номер: <code>' + esc(o.tracking) + '</code>' : '') }); } catch (e) {}
         }
         await J.put(env, 'order:' + id, o);
         return json({ ok: true });
@@ -620,8 +652,8 @@ async function handle(request, env) {
         msgs.push({ from_admin: true, text: text || '', photo_url: photo_url || '', at: new Date().toISOString(), read: false });
         await J.put(env, 'msgs:' + tid, msgs.slice(-200));
         try {
-          if (photo_url) await tgApi(env, 'sendPhoto', { chat_id: Number(tid), photo: photo_url, caption: '🤍 SAHAR' + (text ? '\n' + text : '') });
-          else await tgApi(env, 'sendMessage', { chat_id: Number(tid), parse_mode: 'HTML', text: '🤍 <b>SAHAR</b>\n' + esc(text) });
+          if (photo_url) await tgSend(env, 'sendPhoto', { chat_id: Number(tid), photo: photo_url, caption: CE_BRAND() + ' <b>SAHAR</b>' + (text ? '\n' + esc(text) : ''), parse_mode: 'HTML' });
+          else await tgSend(env, 'sendMessage', { chat_id: Number(tid), parse_mode: 'HTML', text: CE_BRAND() + ' <b>SAHAR</b>\n' + esc(text) });
         } catch (e) {}
         return json({ ok: true });
       }
@@ -631,7 +663,7 @@ async function handle(request, env) {
         const clIds = (await J.get(env, 'client_ids', [])).slice(0, 40); // лимит подзапросов Worker
         let sent = 0, failed = 0;
         for (const tid of clIds) {
-          const r = await tgApi(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text: '🤍 <b>SAHAR</b>\n' + esc(text), reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=12' } }]] } });
+          const r = await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text: CE_BRAND() + ' <b>SAHAR</b>\n' + esc(text), reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=12' } }]] } });
           if (r && r.ok) sent++; else failed++;
         }
         return json({ ok: true, sent, failed });
@@ -677,10 +709,12 @@ async function sendOrders(env, tid, own = false) {
     const o = await J.get(env, 'order:' + id);
     if (!o) continue;
     if (own && String(o.client.telegram_id) !== String(tid)) continue;
-    list.push('#' + o.id + ' · ' + STATUS_RU[o.status] + ' · ' + (o.total_local || ('$' + o.grand_usd)) + (own ? '' : ' · ' + esc(o.client_name || o.client.first_name || '')) + (own && o.tracking ? ' · 📍' + esc(o.tracking) : ''));
+    const usd = o.total_usd !== undefined ? o.total_usd : o.grand_usd;
+    const amt = o.total_local || (usd !== undefined ? '$' + usd : '—');
+    list.push('#' + o.id + ' · ' + CE_STAT(o.status) + ' ' + (STATUS_RU[o.status] || o.status || '—') + ' · <b>' + esc(amt) + '</b>' + (own ? '' : ' · ' + esc(o.client_name || o.client.first_name || '')) + (own && o.tracking ? ' · 📍' + esc(o.tracking) : ''));
     if (list.length >= 5) break;
   }
-  await tgApi(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text: list.length ? (own ? '<b>Ваши заказы</b>\n\n' : '<b>Последние заказы</b>\n\n') + list.join('\n') : (own ? 'У вас пока нет заказов. Откройте магазин и выберите сладости 🍫' : 'Заказов пока нет.') });
+  await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text: list.length ? CE_BRAND() + ' <b>' + (own ? 'Ваши заказы' : 'Последние заказы') + '</b>\n\n' + list.join('\n') : (own ? 'У вас пока нет заказов. Откройте магазин и выберите сладости 🍫' : 'Заказов пока нет.') });
 }
 
 async function handleUpdate(env, u) {
@@ -710,14 +744,14 @@ async function handleUpdate(env, u) {
         await J.put(env, 'msgs:' + pr, msgs.slice(-200));
         if (m.photo) {
           const fid = m.photo[m.photo.length - 1].file_id;
-          await tgApi(env, 'sendPhoto', { chat_id: pr, photo: fid, caption: clamp('🤍 SAHAR' + (rtxt ? '\n' + rtxt : ''), 1000) });
+          await tgSend(env, 'sendPhoto', { chat_id: pr, photo: fid, caption: clamp((CE_BRAND() + ' <b>SAHAR</b>' + (rtxt ? '\n' + esc(rtxt) : '')), 1024), parse_mode: 'HTML' });
         } else if (rtxt) {
-          await tgApi(env, 'sendMessage', { chat_id: pr, parse_mode: 'HTML', text: '🤍 <b>SAHAR</b>\n' + esc(rtxt) });
+          await tgSend(env, 'sendMessage', { chat_id: pr, parse_mode: 'HTML', text: CE_BRAND() + ' <b>SAHAR</b>\n' + esc(rtxt) });
         }
         await tgApi(env, 'sendMessage', { chat_id: tid, text: '✅ Ответ отправлен покупателю.' });
         return;
       }
-      await tgApi(env, 'sendMessage', { chat_id: tid, text: 'ℹ️ Команды: /orders — последние заказы. Для ответа клиенту используйте кнопку 💬 Ответить из уведомления.' });
+      await tgApi(env, 'sendMessage', { chat_id: tid, text: 'ℹ️ Команды: /orders — последние заказы. Для ответа клиенту используйте кнопку «Ответить» из уведомления.' });
       return;
     }
     // клиент
@@ -736,8 +770,8 @@ async function handleUpdate(env, u) {
       const msgs = await J.get(env, 'msgs:' + tid, []);
       msgs.push({ from_admin: false, text: phoneTxt, at: new Date().toISOString(), read: false });
       await J.put(env, 'msgs:' + tid, msgs.slice(-200));
-      await notifyOwners(env, '📞 <b>Клиент поделился номером</b>\n👤 ' + esc(m.from.first_name || '') + ' · <a href="tg://user?id=' + tid + '">' + tid + '</a>\n📱 <code>' + esc(m.contact.phone_number || '') + '</code>',
-        { inline_keyboard: [[{ text: '💬 Ответить', callback_data: 'rep:' + tid }]] });
+      await notifyOwners(env, tgE(CE.phone, '📞') + ' <b>Клиент поделился номером</b>\n' + tgE(CE.client, '👤') + ' ' + esc(m.from.first_name || '') + ' · <a href="tg://user?id=' + tid + '">' + tid + '</a>\n📱 <code>' + esc(m.contact.phone_number || '') + '</code>',
+        replyKb(tid));
       return;
     }
     // сообщение поддержки
@@ -750,12 +784,12 @@ async function handleUpdate(env, u) {
     if (m.photo) {
       const fid = m.photo[m.photo.length - 1].file_id;
       for (const oid of await ownerIds(env)) {
-        try { await tgApi(env, 'sendPhoto', { chat_id: oid, photo: fid, caption: '🖼 <b>Фото от клиента</b>' + (msgText ? '\n' + esc(msgText) : '') + '\n👤 ' + esc(m.from.first_name || '') + ' · <a href="tg://user?id=' + tid + '">' + tid + '</a>', parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: '💬 Ответить', callback_data: 'rep:' + tid }]] } }); } catch (e) {}
+        try { await tgSend(env, 'sendPhoto', { chat_id: oid, photo: fid, caption: '🖼 <b>Фото от клиента</b>' + (msgText ? '\n' + esc(msgText) : '') + '\n' + tgE(CE.client, '👤') + ' ' + esc(m.from.first_name || '') + ' · <a href="tg://user?id=' + tid + '">' + tid + '</a>', parse_mode: 'HTML', reply_markup: replyKb(tid) }); } catch (e) {}
       }
     } else {
       await notifyOwners(env,
-        '💬 <b>Сообщение от клиента</b>\n' + esc(msgText || '(вложение)') + '\n👤 ' + esc(m.from.first_name || '') + ' · <a href="tg://user?id=' + tid + '">' + tid + '</a>',
-        { inline_keyboard: [[{ text: '💬 Ответить', callback_data: 'rep:' + tid }]] });
+        tgE(CE.chat, '💬') + ' <b>Сообщение от клиента</b>\n' + esc(msgText || '(вложение)') + '\n' + tgE(CE.client, '👤') + ' ' + esc(m.from.first_name || '') + ' · <a href="tg://user?id=' + tid + '">' + tid + '</a>',
+        replyKb(tid));
     }
     await tgApi(env, 'sendMessage', { chat_id: tid, text: '✅ Сообщение отправлено. Мы ответим здесь и в разделе «Сообщения» магазина.', reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=12' } }]] } });
     return;
@@ -783,7 +817,7 @@ async function handleUpdate(env, u) {
           }
           o.status = status; (o.history = o.history || []).push({ status, at: new Date().toISOString() });
           await J.put(env, 'order:' + id, o);
-          try { await tgApi(env, 'sendMessage', { chat_id: o.client.telegram_id, parse_mode: 'HTML', text: '🤍 <b>SAHAR</b> — статус заказа <b>#' + o.id + '</b>\n\n' + STATUS_RU[status] + (status === 'shipping' && o.tracking ? '\n🔖 Трек-номер: <code>' + esc(o.tracking) + '</code>' : '') }); } catch (e) {}
+          try { await tgSend(env, 'sendMessage', { chat_id: o.client.telegram_id, parse_mode: 'HTML', text: CE_BRAND() + ' <b>SAHAR — статус заказа #' + o.id + '</b>\n\n' + CE_STAT(status) + ' <b>' + (STATUS_RU[status] || '—') + '</b>' + (status === 'shipping' && o.tracking ? '\n🔖 Трек-номер: <code>' + esc(o.tracking) + '</code>' : '') }); } catch (e) {}
           try { if (cb.message) await tgApi(env, 'editMessageReplyMarkup', { chat_id: cb.message.chat.id, message_id: cb.message.message_id, reply_markup: (await orderKb(id, status)) || { inline_keyboard: [] } }); } catch (e) {}
           cbText = 'Статус #' + id + ': ' + STATUS_RU[status];
         } else cbText = 'Заказ не найден';
