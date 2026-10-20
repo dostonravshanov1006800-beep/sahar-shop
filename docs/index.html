@@ -639,7 +639,7 @@ function renderCatGrid(){
   const tiles = S.cats.filter(c => !gc || c.id !== gc.id).slice(0,8).map(c=>({ nm:(S.lang==='en'?c.name_en:(S.lang==='uz'?c.name_uz:c.name_ru)), ic:tileIcon(c), on:S.cat===c.id, fn:`pickCat(${c.id})` }));
   const L = { ru:['Собери свой набор','Сладости, открытка и упаковка'], en:['Build your own set','Sweets, card & packaging'], uz:['To\u2018plamni yig\u2018ing','Shirinlik, karta va qadoq'] }[S.lang] || ['Собери свой набор','Сладости, открытка и упаковка'];
   $('catgrid').innerHTML = tiles.map(x=>`<button class="catt press-h ${x.on?'on':''}" onclick="${x.fn}"><span class="cic">${x.ic}</span><span class="cnm">${x.nm}</span></button>`).join('') +
-    (gc ? `<button class="catt-promo press-h ${S.cat===gc.id?'on':''}" onclick="pickCat(${gc.id})">
+    (gc ? `<button class="catt-promo press-h" onclick="openBuilder()">
       <span class="ppic">🎁</span>
       <span><span class="pt">${L[0]}</span><span class="ps">${L[1]}</span></span>
       <svg class="par" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
@@ -715,10 +715,6 @@ function renderSections(){
     <div class="found-n">${list.length} ${pluralGoods(list.length)}</div>`;
   if (!S.q && !S.badge && S.cat===0){
     if (hits.length) html += `<div class="sect"><div class="sect-h"><div class="sect-t">${t('hits')}</div><div class="sect-s">SAHAR</div></div><div class="grid">${hits.map(cardHtml).join('')}</div></div>`;
-    html += `<div class="promo-row"><div class="promo-card press anim" onclick="openBuilder()">
-      <div class="promo-ic">${CAT_ICON_SVG.gift}</div>
-      <div style="flex:1"><div style="font-weight:800;font-size:15px;letter-spacing:-.01em">Собери свой набор</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Выберите сладости, открытку и упаковку — остальное сделаем мы</div></div>
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--soft)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></div></div>`;
     if (news.length) html += `<div class="sect"><div class="sect-t">${t('news')}</div><div class="grid">${news.map(cardHtml).join('')}</div></div>`;
     if (sets.length) html += `<div class="sect"><div class="sect-t">${t('sets')}</div><div class="grid">${sets.map(cardHtml).join('')}</div></div>`;
     if (sales.length) html += `<div class="sect"><div class="sect-t">${t('sales')}</div><div class="grid">${sales.map(cardHtml).join('')}</div></div>`;
