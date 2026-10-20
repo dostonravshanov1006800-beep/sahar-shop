@@ -102,7 +102,6 @@ function api(path, opts = {}) {
 async function onPickPhoto(input) {
   const file = input.files && input.files[0];
   if (!file) return;
-  tg.showScanQr?.(); // хаптик-фидбек если есть
   try {
     const bitmap = await createImageBitmap(file);
     const max = 900;
