@@ -1,0 +1,61 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>E2E v6.1</title></head><body>
+<pre id="log">E2E v6.1 running…</pre>
+<script>
+const API='https://sahar-shop.dostonravshanov1006800.workers.dev';
+const QS_OWNER='auth_date=1792479830&query_id=q_dostonravshanov&user=%7B%22id%22%3A6999767433%2C%22first_name%22%3A%22%D0%94%D0%BE%D1%81%D1%82%D0%BE%D0%BD%22%2C%22username%22%3A%22dostonravshanov%22%2C%22language_code%22%3A%22ru%22%7D&hash=6b92032a3b7ec522fab18ab1a1097e6fab3bbaf2d4056f42e7a874f28f72642c', QS_CLIENT='auth_date=1792479830&query_id=q_e2e_client&user=%7B%22id%22%3A111222333%2C%22first_name%22%3A%22E2E%22%2C%22username%22%3A%22e2e_client%22%2C%22language_code%22%3A%22ru%22%7D&hash=6d8732166ea328f37a9a107436a677d2e90be0ac5eb3dd6fb074e5827e491856';
+const out=[]; const log=s=>{out.push(s); document.getElementById('log').textContent=out.join('\n');};
+async function api(path, body){
+  const r = await fetch(API+'/api'+path, body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:undefined);
+  let j=null; try{ j=await r.json(); }catch(e){}
+  return { status:r.status, j };
+}
+(async()=>{
+  try{
+    let r = await api('/ping'); log('1) ping: '+(r.j.v===6?'OK':'FAIL'));
+    r = await api('/settings'); const stAll = r.j;
+    const leak = (stAll.payments||[]).some(p=>(p.instr_ru||'').length>0);
+    log('2) БЕЗ страны: реквизиты скрыты: '+(leak?'FAIL УТЕЧКА':'OK'));
+    r = await api('/settings?country=UZ'); const stUz = r.j;
+    const uzClick = stUz.payments.find(p=>p.id==='click'), ruSpb = stUz.payments.find(p=>p.id==='spb');
+    log('3) UZ-клиент: Click c реквизитами='+(uzClick&&(uzClick.instr_ru||'').length>0)+', СБП instr пустой='+(ruSpb&&!(ruSpb.instr_ru||'').length)+' → '+((uzClick&&(uzClick.instr_ru||'').length>0)&&ruSpb?!(ruSpb.instr_ru||'').length?'OK':'FAIL':'FAIL'));
+    r = await fetch(API+'/api/catalog'); const cat = await r.json();
+    log('4) каталог: '+(cat.products.length===8&&!cat.products.some(p=>p.is_deleted)?'OK 8 товаров':'FAIL '+cat.products.length));
+    r = await api('/verify',{initData:QS_OWNER}); log('5) verify owner: '+(r.j.is_owner?'OK':'FAIL'));
+    r = await api('/verify',{initData:QS_CLIENT.replace(/hash=[0-9a-f]+/,'hash=dead')}); log('6) forged: '+(r.status===403?'OK':'FAIL'));
+    const IDEM='v71-'+Date.now();
+    const ord={initData:QS_CLIENT,items:[{id:3,qty:1}],name:'E2E v7',phone:'+7 900 123 45 67',country:'RU',city:'Москва',address:'Тверская 1',delivery:'courier',payment_method:'spb',idem_key:IDEM};
+    r = await api('/order',ord); const oid = r.j.order_id; log('7) заказ RU/СБП: '+(r.j.ok?'OK #'+oid:'FAIL '+JSON.stringify(r.j)));
+    r = await api('/order',ord); log('8) дубль idem: '+(r.j.duplicate?'OK':'FAIL'));
+    // rate limit на заказы: 7 разных заказов подряд → часть должна получить 429
+    let rl=0, ok2=0;
+    for(let i=0;i<7;i++){ const rr=await api('/order',{...ord,idem_key:'v71b'+i+'-'+Date.now()}); if(rr.status===429) rl++; else if(rr.j.ok) ok2++; }
+    log('9) rate-limit заказов (6/мин): '+(rl>0?'OK заблокировано '+rl+' после лимита':'FAIL — нет лимита (создано ещё '+ok2+')'));
+    r = await api('/admin/product',{initData:QS_OWNER,product:{name_ru:'E2E v71',price_usd:5,stock:1,cat:1}});
+    r = await api('/admin/products',{initData:QS_OWNER}); let np=(r.j.products||[]).find(p=>p.name_ru==='E2E v71'); const npid=np.id;
+    log('10) создан товар id '+npid+': '+(np?'OK':'FAIL'));
+    r = await api('/admin/product/delete',{initData:QS_OWNER,id:npid});
+    r = await fetch(API+'/api/catalog'); const cat2=await r.json();
+    const gone = !cat2.products.some(p=>p.id===npid);
+    r = await api('/admin/products',{initData:QS_OWNER});
+    const inTrash = (r.j.deleted||[]).some(p=>p.id===npid);
+    log('11) мягкое удаление: из витрины '+(gone?'исчез':'ВИДЕН!')+', в корзине '+(inTrash?'есть':'НЕТ')+' → '+(gone&&inTrash?'OK':'FAIL'));
+    r = await api('/admin/product/restore',{initData:QS_OWNER,id:npid});
+    r = await fetch(API+'/api/catalog'); const cat3=await r.json();
+    log('12) восстановление: '+(cat3.products.some(p=>p.id===npid)?'OK товар вернулся':'FAIL'));
+    // фото: клиент грузит → админ отправляет с фото
+    r = await api('/upload',{initData:QS_CLIENT,b64:'/9j/4AAQSkZJRgABAQAAEQIDAAg=' + 'A'.repeat(2000),mime:'image/jpeg'}); const purl=r.j.url;
+    r = await api('/admin/chat/send',{initData:QS_OWNER,tid:111222333,text:'E2E фото-ответ',photo_url:purl});
+    r = await api('/admin/chat',{initData:QS_OWNER,tid:111222333});
+    const photoMsg = r.j.some(m=>m.photo_url===purl&&m.from_admin);
+    log('13) владелец отвечает фото: '+(photoMsg?'OK (боту ушла sendPhoto по URL)':'FAIL'));
+    // спам-лимит чата
+    let blocked=0;
+    for(let i=0;i<14;i++){ const rr=await api('/support',{initData:QS_CLIENT,text:'spam '+i}); if(rr.status===429) blocked++; }
+    log('14) rate-limit чата (10/мин): '+(blocked>0?'OK отлеплено '+blocked+' спам-сообщений':'FAIL'));
+    // чужой photo_url отклоняется
+    r = await api('/support',{initData:QS_CLIENT,text:'x',photo_url:'https://evil.com/img/1.jpg'});
+    log('15) левый photo_url отклонён: '+(r.status===400?'OK':'FAIL '+r.status));
+    log('=== КОНЕЦ. Тест-данные: заказ #'+oid+', товар '+npid+' (удалить жёстко), msgs/img/idem — чистка через wrangler ===');
+  }catch(e){ log('CRASH: '+e.message); }
+})();
+</script></body></html>
