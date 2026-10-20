@@ -320,6 +320,11 @@ async function handle(request, env) {
     if (p === '/api/support' && request.method === 'GET') {
       if (!user) return json({ ok: false, error: 'forbidden' }, 403);
       const msgs = await J.get(env, 'msgs:' + user.id, []);
+      if (new URL(request.url).searchParams.get('mark') === '1') {
+        let ch = false;
+        for (const m of msgs) if (m.from_admin && !m.read) { m.read = true; ch = true; }
+        if (ch) await J.put(env, 'msgs:' + user.id, msgs);
+      }
       return json(msgs);
     }
     if (p === '/api/support' && request.method === 'POST') {
@@ -533,7 +538,7 @@ async function handle(request, env) {
         if (!tid || (!text && !photo_url)) return json({ ok: false, error: 'bad_request' }, 400);
         if (photo_url && !photo_url.startsWith(url.origin + '/img/')) return json({ ok: false, error: 'bad_photo' }, 400);
         const msgs = await J.get(env, 'msgs:' + tid, []);
-        msgs.push({ from_admin: true, text: text || '', photo_url: photo_url || '', at: new Date().toISOString(), read: true });
+        msgs.push({ from_admin: true, text: text || '', photo_url: photo_url || '', at: new Date().toISOString(), read: false });
         await J.put(env, 'msgs:' + tid, msgs.slice(-200));
         try {
           if (photo_url) await tgApi(env, 'sendPhoto', { chat_id: Number(tid), photo: photo_url, caption: '🤍 SAHAR' + (text ? '\n' + text : '') });
@@ -614,7 +619,7 @@ async function handleUpdate(env, u) {
         await J.del(env, 'pending_reply:' + tid);
         const rtxt = m.text || m.caption || '';
         const msgs = await J.get(env, 'msgs:' + pr, []);
-        msgs.push({ from_admin: true, text: clamp(rtxt, 2000), at: new Date().toISOString(), read: true });
+        msgs.push({ from_admin: true, text: clamp(rtxt, 2000), at: new Date().toISOString(), read: false });
         await J.put(env, 'msgs:' + pr, msgs.slice(-200));
         if (m.photo) {
           const fid = m.photo[m.photo.length - 1].file_id;
