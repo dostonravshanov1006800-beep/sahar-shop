@@ -193,7 +193,7 @@ async function handle(request, env) {
       const pays = (s.payments || []).filter(x => x.active !== false).map(x => cCode && x.countries.includes(cCode) ? x : { ...x, instr_ru: '', instr_en: '' });
       return json({ rates: s.rates, rounding: s.rounding, countries: s.countries, payments: pays, shop_open: s.shop_open !== false, anim: s.anim || 'silk', haptic: s.haptic !== false, v: 6 });
     }
-    if (p === '/api/verify' && request.method === 'POST') {
+    if (p === '/api/verify') {
       if (!user) return json({ ok: false, error: 'invalid_init' }, 403);
       return json({ ok: true, user, is_owner: await isOwner(env, user.id) });
     }

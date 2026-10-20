@@ -95,7 +95,7 @@ async function guard(fn){
 function toast(m){ const el=$('toast'); el.textContent=m; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),2400); }
 async function api(path, body){
   const initData = tg && tg.initData ? { initData: tg.initData } : {};
-  const r = await fetch(API + '/api' + path, body ? { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({...initData, ...body}) } : undefined);
+  const r = await fetch(API + '/api' + path, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...initData, ...(body || {}) }) });
   if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.error || 'HTTP ' + r.status); }
   return r.json();
 }
