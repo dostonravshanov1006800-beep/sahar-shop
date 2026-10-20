@@ -92,12 +92,12 @@ header{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--bg) 7
 #catgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px 8px;margin-top:18px}
 .catt{display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;border:none;background:transparent;padding:0}
 .catt .cic{width:56px;height:56px;border-radius:18px;background:var(--caramel-soft);display:flex;align-items:center;justify-content:center;font-size:30px;line-height:1;transition:transform .2s cubic-bezier(.34,1.56,.64,1);color:var(--caramel-deep)}
-.catt-promo{grid-column:span 3;border-radius:18px;background:linear-gradient(135deg,var(--caramel),var(--caramel-soft));border:1px solid rgba(74,42,32,.10);display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;text-align:left;transition:transform .2s ease;box-shadow:0 6px 16px rgba(74,42,32,.10)}
+.catt-promo{grid-column:1/-1;border-radius:24px;background:linear-gradient(135deg,var(--caramel) 0%,var(--caramel-soft) 60%,var(--cream) 100%);border:1px solid rgba(74,42,32,.10);display:flex;align-items:center;gap:16px;padding:22px 20px;cursor:pointer;text-align:left;transition:transform .2s ease;box-shadow:0 10px 30px rgba(74,42,32,.12),inset 0 1px 0 rgba(255,255,255,.5)}
 .catt-promo:active{transform:scale(.97)}
 .catt-promo.on{outline:2px solid var(--pri);outline-offset:2px}
-.catt-promo .ppic{width:46px;height:46px;border-radius:15px;background:rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center;font-size:24px;flex:none}
-.catt-promo .pt{display:block;font-weight:800;font-size:13px;color:#4B2B20;line-height:1.15;letter-spacing:-.01em}
-.catt-promo .ps{display:block;font-size:10.5px;font-weight:600;color:#6E5B47;margin-top:2px}
+.catt-promo .ppic{width:58px;height:58px;border-radius:20px;background:rgba(255,255,255,.65);display:flex;align-items:center;justify-content:center;font-size:30px;flex:none;box-shadow:0 6px 14px rgba(74,42,32,.14)}
+.catt-promo .pt{font-size:21px;font-weight:800;letter-spacing:-.02em;line-height:1.15;display:block}
+.catt-promo .ps{font-size:13px;font-weight:600;color:var(--muted);margin-top:3px;display:block}
 .catt-promo .par{margin-left:auto;color:#4B2B20;flex:none}
 .catt:active .cic{transform:scale(.88)}
 .catt .cnm{font-size:10px;font-weight:600;color:var(--muted);text-align:center;line-height:1.25}
@@ -633,8 +633,8 @@ function renderCatGrid(){
     }
     return CAT_ICON_SVG[catIconFor(c && c.name_ru)] || CAT_ICON_SVG.candy;
   };
-  const tiles = S.cats.slice(0,6).map(c=>({ nm:(S.lang==='en'?c.name_en:(S.lang==='uz'?c.name_uz:c.name_ru)), ic:tileIcon(c), on:S.cat===c.id, fn:`pickCat(${c.id})` }));
   const gc = S.cats.find(c => /Подарочн|Gift|Sovg|sovg/i.test(c.name_ru + (c.name_en||'') + (c.name_uz||''))) || S.cats[S.cats.length-1];
+  const tiles = S.cats.filter(c => !gc || c.id !== gc.id).slice(0,8).map(c=>({ nm:(S.lang==='en'?c.name_en:(S.lang==='uz'?c.name_uz:c.name_ru)), ic:tileIcon(c), on:S.cat===c.id, fn:`pickCat(${c.id})` }));
   const L = { ru:['Собери свой набор','Сладости, открытка и упаковка'], en:['Build your own set','Sweets, card & packaging'], uz:['To\u2018plamni yig\u2018ing','Shirinlik, karta va qadoq'] }[S.lang] || ['Собери свой набор','Сладости, открытка и упаковка'];
   $('catgrid').innerHTML = tiles.map(x=>`<button class="catt press-h ${x.on?'on':''}" onclick="${x.fn}"><span class="cic">${x.ic}</span><span class="cnm">${x.nm}</span></button>`).join('') +
     (gc ? `<button class="catt-promo press-h ${S.cat===gc.id?'on':''}" onclick="pickCat(${gc.id})">

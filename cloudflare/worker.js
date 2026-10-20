@@ -254,6 +254,13 @@ const replyKb = tid => ({ inline_keyboard: [[{ text: 'Ответить', icon_cu
 async function handle(request, env) {
   const url = new URL(request.url);
   const p = url.pathname;
+  const imgMatch = p.match(/^\/img\/(\d+)$/);
+  if (imgMatch) {
+    const rec = await J.get(env, 'img:' + imgMatch[1]);
+    if (!rec || !rec.data) return new Response('Not found', { status: 404 });
+    const bin = Uint8Array.from(atob(rec.data), c => c.charCodeAt(0));
+    return new Response(bin, { headers: { 'Content-Type': rec.mime || 'image/jpeg', 'Cache-Control': 'public, max-age=31536000', 'Access-Control-Allow-Origin': '*' } });
+  }
   if (request.method === 'OPTIONS') return new Response(null, { headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS' } });
 
   // картинки
@@ -473,6 +480,7 @@ async function handle(request, env) {
       await notifyOwners(env,
         (photo_url ? '🖼 <b>Фото от клиента</b>\n' : tgE(CE.chat, '💬') + ' <b>Сообщение от клиента</b>\n') + esc(text || '(фото)') + '\n' + tgE(CE.client, '👤') + ' ' + esc(user.first_name || '') + ' · <a href="tg://user?id=' + user.id + '">' + user.id + '</a>',
         replyKb(user.id));
+      if (photo_url) { for (const oid of await ownerIds(env)) { try { await tgSend(env, 'sendPhoto', { chat_id: oid, photo: photo_url }); } catch (e) {} } }
       return json({ ok: true });
     }
     if (p === '/api/upload' && request.method === 'POST') {
@@ -819,7 +827,7 @@ async function sendOrders(env, tid, own = false) {
 
 async function handleUpdate(env, u) {
   try { await ensureProfile(env); } catch (e) {}
-  const SHOP_URL = env.WEBAPP_URL + '?v=24';
+  const SHOP_URL = env.WEBAPP_URL + '?v=25';
   const shopBtn = (t) => ({ text: t, icon_custom_emoji_id: CE.shop, web_app: { url: SHOP_URL } });
   if (u.message) {
     const m = u.message, tid = m.from.id;
@@ -920,6 +928,19 @@ async function handleUpdate(env, u) {
     const who = tgE(CE.client, '👤') + ' ' + esc(m.from.first_name || '') + (m.from.username ? ' · @' + esc(m.from.username) : '') + ' · <a href="tg://user?id=' + tid + '">' + tid + '</a>';
     if (m.photo) {
       const fid = m.photo[m.photo.length - 1].file_id;
+      try {
+        const fg = await (await fetch('https://api.telegram.org/bot' + env.BOT_TOKEN + '/getFile?file_id=' + encodeURIComponent(fid))).json();
+        if (fg && fg.ok && fg.result && fg.result.file_path) {
+          const ab = await (await fetch('https://api.telegram.org/file/bot' + env.BOT_TOKEN + '/' + fg.result.file_path)).arrayBuffer();
+          const by = new Uint8Array(ab); let b64s = '';
+          for (let i = 0; i < by.length; i += 4096) b64s += String.fromCharCode.apply(null, by.subarray(i, i + 4096));
+          const iid = await J.get(env, 'next_img', 1);
+          await J.put(env, 'img:' + iid, { data: btoa(b64s), mime: fg.result.file_path.endsWith('.png') ? 'image/png' : 'image/jpeg' });
+          await J.put(env, 'next_img', iid + 1);
+          const mlist = await J.get(env, 'msgs:' + tid, []);
+          if (mlist.length) { mlist[mlist.length - 1].photo_url = 'https://sahar-shop.dostonravshanov1006800.workers.dev/img/' + iid; await J.put(env, 'msgs:' + tid, mlist); }
+        }
+      } catch (e) {}
       for (const oid of await ownerIds(env)) {
         try { await tgSend(env, 'sendPhoto', { chat_id: oid, photo: fid, caption: tgE(CE.msg, '💬') + ' <b>Сообщение от клиента</b>\n' + who, parse_mode: 'HTML', reply_markup: replyKb(tid) }); } catch (e) {}
       }
