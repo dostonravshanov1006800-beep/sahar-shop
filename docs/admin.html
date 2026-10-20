@@ -840,6 +840,7 @@ function doBroadcast(){
 async function renderSettingsAdm(){
   const r = await api('/admin/settings');
   const s = r.settings || r;
+  ADM_CARDS = s.cards || {}; window.__cardDefault = s.card || {};
   const CURS = Object.keys(s.rates||{});
   $('content').innerHTML = `<button class="btn btn-ghost blk" onclick="TAB='more';renderTabs();render()">← Ещё</button>
   <div class="sect-t">Курсы валют (за 1 $)</div>
@@ -868,7 +869,8 @@ async function renderSettingsAdm(){
       <div><b>Только перевод на карту</b><div class="muted" style="font-size:11.5px;margin-top:2px">Покупателям виден только этот способ. Выключите, чтобы вернуть оплату по странам.</div></div>
       <button id="pcOnly" class="${s.pay_only_card!==false?'on':''}" onclick="this.classList.toggle('on');this.textContent=this.classList.contains('on')?'✓ Включён':'Выключен'" style="padding:8px 12px;border-radius:10px;border:1px solid var(--hair);background:var(--surface);font:700 12px 'Manrope';cursor:pointer;color:var(--text)">${s.pay_only_card!==false?'✓ Включён':'Выключен'}</button>
     </div>
-    <div class="frow" style="margin-top:10px">
+    <div class="field" style="margin-top:10px"><label>Страна (карта показывается покупателю автоматически по его стране)</label><select id="cardCountry" onchange="cardCountrySel(this.value)" style="background:var(--surface);border:1px solid var(--hair);border-radius:9px;padding:8px 10px;color:var(--text);font:700 14px 'Manrope'"><option value="">Общая — по умолчанию</option>${(s.countries||[]).map(c2=>`<option value="${c2.code}">${c2.flag||''} ${c2.name_ru} (${c2.code})</option>`).join('')}</select></div>
+    <div class="frow" style="margin-top:8px">
       <div class="field" style="flex:2"><label>Номер карты</label><input id="cardNum" inputmode="numeric" placeholder="2202 2035 5537 4653" value="${escHtml((s.card||{}).num||'')}"></div>
       <div class="field" style="flex:1"><label>Владелец (на карте)</label><input id="cardName" placeholder="ИМЯ ФАМИЛИЯ" value="${escHtml((s.card||{}).name||'')}"></div>
     </div>
@@ -879,17 +881,45 @@ async function renderSettingsAdm(){
     <div class="muted" style="font-size:11.5px;margin-top:8px">Эти реквизиты покупатель увидит на экране сразу после оформления заказа.</div>
     <button class="btn btn-gold blk" style="margin-top:10px" onclick="guard(saveCard)">💾 Сохранить карту</button>
   </div>
+  <div class="sect-t">Крипто-оплата: USDT / GRAM (сеть TON)</div>
+  <div class="card">
+    <div class="row" style="display:flex;justify-content:space-between;align-items:center">
+      <div><b>Принимать крипту</b><div class="muted" style="font-size:11.5px;margin-top:2px">Способ «Крипто: USDT / GRAM» в оплате + крипто-карта с адресом после заказа.</div></div>
+      <button id="cOn" class="${(s.crypto||{}).on?'on':''}" onclick="this.classList.toggle('on');this.textContent=this.classList.contains('on')?'✓ Включён':'Выключен'" style="padding:8px 12px;border-radius:10px;border:1px solid var(--hair);background:var(--surface);font:700 12px 'Manrope';cursor:pointer;color:var(--text)">${(s.crypto||{}).on?'✓ Включён':'Выключен'}</button>
+    </div>
+    <div class="field" style="margin-top:10px"><label>Адрес кошелька TON (UQ… / EQ…)</label><input id="crAddr" placeholder="UQCK…GRqm…" value="${escHtml((s.crypto||{}).addr||'')}"></div>
+    <div class="frow" style="margin-top:8px">
+      <div class="field" style="flex:1"><label>1 USDT ≈ $</label><input id="crUsdt" type="number" step="0.01" value="${(s.crypto||{}).usdt||1}"></div>
+      <div class="field" style="flex:1"><label>1 GRAM ≈ $</label><input id="crGram" type="number" step="0.01" value="${(s.crypto||{}).gram||1.4}"></div>
+    </div>
+    <div class="muted" style="font-size:11.5px;margin-top:8px">USDT и GRAM — жетоны сети TON, хватает одного адреса. Курсы используются для суммы «≈ USDT / GRAM» на экране покупателя.</div>
+    <button class="btn btn-gold blk" style="margin-top:10px" onclick="guard(saveCrypto)">💾 Сохранить крипту</button>
+  </div>
   <div class="sect-t">Анимации витрины</div>
   <div class="card"><div class="kb" id="animKb">${['silk','shimmer','parallax','festive','minimal'].map(a=>`<button class="${s.anim===a?'on':''}" onclick="pickAnim('${a}')">${{silk:'Silk',shimmer:'Golden Shimmer',parallax:'Parallax Luxe',festive:'Festive ✨',minimal:'Minimal'}[a]}</button>`).join('')}</div>
   <div class="muted" style="font-size:12px;margin-top:8px">Живое превью на витрине после сохранения.</div>
   <button class="btn btn-gold blk" onclick="saveAnim()">💾 Применить анимацию</button></div>`;
 }
+let ADM_CARDS = null;
+function cardCountrySel(code){
+  const c = (code && ADM_CARDS ? (ADM_CARDS[code] || {}) : (window.__cardDefault || {}));
+  $('cardNum').value = c.num || ''; $('cardName').value = c.name || ''; $('cardBank').value = c.bank || ''; $('cardBrand').value = c.brand || 'МИР';
+}
 async function saveCard(){
   const r = await api('/admin/settings'); const s = r.settings || r;
-  s.card = { num: ($('cardNum').value||'').replace(/[^\d ]/g,'').slice(0,24).trim(), name: $('cardName').value.trim().slice(0,40), bank: $('cardBank').value.trim().slice(0,30), brand: $('cardBrand').value };
+  const one = { num: ($('cardNum').value||'').replace(/[^\d ]/g,'').slice(0,24).trim(), name: $('cardName').value.trim().slice(0,40), bank: $('cardBank').value.trim().slice(0,30), brand: $('cardBrand').value };
+  const code = $('cardCountry').value;
+  if (code){ if (!s.cards || typeof s.cards !== 'object') s.cards = {}; s.cards[code] = one; }
+  else s.card = one;
   s.pay_only_card = $('pcOnly').classList.contains('on');
   await api('/admin/settings', { settings: s });
-  toast('Карта и режим оплаты сохранены');
+  toast(code ? ('Карта для ' + code + ' сохранена') : 'Общая карта и режим оплаты сохранены');
+}
+async function saveCrypto(){
+  const r = await api('/admin/settings'); const s = r.settings || r;
+  s.crypto = { on: $('cOn').classList.contains('on'), addr: $('crAddr').value.trim().slice(0,64), usdt: Number($('crUsdt').value) || 1, gram: Number($('crGram').value) || 1.4 };
+  await api('/admin/settings', { settings: s });
+  toast('Крипто-оплата сохранена');
 }
 let pendingAnim = null;
 async function pickAnim(a){ pendingAnim = a; [...$('animKb').querySelectorAll('button')].forEach(b=>b.classList.remove('on')); event.target.classList.add('on'); }

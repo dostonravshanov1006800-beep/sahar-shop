@@ -89,6 +89,8 @@ const DEFAULT_SETTINGS = {
     { id: 'payme', title_ru: 'Payme', title_en: 'Payme', countries: ['UZ'], instr_ru: 'Оплата через Payme — реквизиты придут после оформления заказа.', instr_en: 'Payme payment details will be sent after checkout.', active: true },
   ],
   card: { num: '', name: '', bank: '', brand: 'МИР' },
+  cards: {},
+  crypto: { on: false, addr: '', usdt: 1, gram: 1.4 },
   pay_only_card: true,
 };
 
@@ -285,7 +287,7 @@ async function handle(request, env) {
       let pays = (s.payments || []).filter(x => x.active !== false);
       if (onlyCard) pays = pays.filter(x => x.id === 'card');
       pays = pays.map(x => cCode && x.countries.includes(cCode) ? x : { ...x, instr_ru: '', instr_en: '' });
-      return json({ rates: s.rates, rounding: s.rounding, countries: s.countries, payments: pays, card: s.card || { num:'',name:'',bank:'',brand:'МИР' }, pay_only_card: onlyCard, shop_open: s.shop_open !== false, anim: s.anim || 'silk', haptic: s.haptic !== false, v: 6 });
+      return json({ rates: s.rates, rounding: s.rounding, countries: s.countries, payments: pays, card: s.card || { num:'',name:'',bank:'',brand:'МИР' }, cards: s.cards || {}, crypto: s.crypto || { on:false, addr:'', usdt:1, gram:1.4 }, pay_only_card: onlyCard, shop_open: s.shop_open !== false, anim: s.anim || 'silk', haptic: s.haptic !== false, v: 6 });
     }
     if (p === '/api/verify') {
       if (!user) return json({ ok: false, error: 'invalid_init' }, 403);
@@ -349,7 +351,9 @@ async function handle(request, env) {
       if (!orderItems.length) return json({ ok: false, error: 'empty' }, 400);
       const c = (s.countries || []).find(x => x.code === country);
       if (!c) return json({ ok: false, error: 'bad_country' }, 400);
-      const pmDef = (s.payments || []).find(x => x.id === payment_method && x.active !== false);
+      const cryptoOk = s.crypto && s.crypto.on === true && s.crypto.addr;
+      const pmDef = (s.payments || []).find(x => x.id === payment_method && x.active !== false) ||
+        (payment_method === 'crypto' && cryptoOk ? { id: 'crypto', countries: (s.countries || []).map(x => x.code) } : null);
       if (!pmDef || !pmDef.countries.includes(country)) return json({ ok: false, error: 'bad_payment' }, 400);
       // доставка
       const dType = delivery === 'postal' ? 'postal' : 'courier';
@@ -770,6 +774,8 @@ async function handle(request, env) {
           if (patch.payments) merged.payments = patch.payments.map(p => ({ ...p, countries: Array.isArray(p.countries) ? p.countries : [] }));
           if (patch.card) merged.card = { num: String(patch.card.num || '').replace(/[^\d ]/g, '').slice(0, 24).trim(), name: String(patch.card.name || '').slice(0, 40), bank: String(patch.card.bank || '').slice(0, 30), brand: ['МИР','VISA','Mastercard','UnionPay'].includes(patch.card.brand) ? patch.card.brand : 'МИР' };
           if (patch.pay_only_card !== undefined) merged.pay_only_card = patch.pay_only_card === true;
+          if (patch.cards) { const cl = {}; for (const [k, v] of Object.entries(patch.cards)) cl[String(k).toUpperCase().slice(0, 3)] = { num: String(v.num || '').replace(/[^\d ]/g, '').slice(0, 24).trim(), name: String(v.name || '').slice(0, 40), bank: String(v.bank || '').slice(0, 30), brand: ['МИР','VISA','Mastercard','UnionPay'].includes(v.brand) ? v.brand : 'МИР' }; merged.cards = cl; }
+          if (patch.crypto) { const cu = Number(patch.crypto.usdt), gr = Number(patch.crypto.gram); merged.crypto = { on: patch.crypto.on === true, addr: String(patch.crypto.addr || '').slice(0, 64).trim(), usdt: (isFinite(cu) && cu > 0) ? cu : 1, gram: (isFinite(gr) && gr > 0) ? gr : 1.4 }; }
           await J.put(env, 'settings', merged);
           return json({ ok: true, settings: merged });
         }
@@ -813,7 +819,7 @@ async function sendOrders(env, tid, own = false) {
 
 async function handleUpdate(env, u) {
   try { await ensureProfile(env); } catch (e) {}
-  const SHOP_URL = env.WEBAPP_URL + '?v=20';
+  const SHOP_URL = env.WEBAPP_URL + '?v=21';
   const shopBtn = (t) => ({ text: t, icon_custom_emoji_id: CE.shop, web_app: { url: SHOP_URL } });
   if (u.message) {
     const m = u.message, tid = m.from.id;
