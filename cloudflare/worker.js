@@ -212,10 +212,19 @@ async function handle(request, env) {
       const catIds = await J.get(env, 'cat_ids', []);
       const categories = [];
       for (const id of catIds) { const c = await J.get(env, 'cat:' + id); if (c && !c.hidden) categories.push(c); }
+      categories.sort((a, b) => (a.sort || 0) - (b.sort || 0));
       const products = [];
       for (const id of await J.get(env, 'prod_ids', [])) { const pr = await J.get(env, 'prod:' + id); if (pr && pr.is_active !== false && !pr.is_deleted) products.push(pr); }
       const banners = [];
-      for (const b of await J.get(env, 'banner_ids', [])) { const bn = await J.get(env, 'banner:' + b); if (bn) banners.push(bn); }
+      const today = new Date().toISOString().slice(0, 10);
+      for (const id of await J.get(env, 'banner_ids', [])) {
+        const b = await J.get(env, 'banner:' + id);
+        if (!b || b.hidden) continue;
+        if (b.dfrom && today < b.dfrom) continue;
+        if (b.dto && today > b.dto) continue;
+        banners.push(b);
+      }
+      banners.sort((a, b) => (a.sort || 0) - (b.sort || 0));
       return json({ categories, products, banners });
     }
     if (p === '/api/order' && request.method === 'POST') {
@@ -433,7 +442,7 @@ async function handle(request, env) {
         } else {
           if (!b.name_ru || !String(b.name_ru).trim() || b.price_usd === undefined) return json({ ok: false, error: 'bad_request' }, 400);
           const id = await J.get(env, 'next_prod', 1);
-          await J.put(env, 'prod:' + id, { id, name_ru: b.name_ru, name_en: b.name_en || '', name_uz: b.name_uz || '', desc_ru: b.desc_ru || '', desc_en: b.desc_en || '', desc_uz: b.desc_uz || '', cat: b.cat || 1, price_usd: Number(b.price_usd) || 0, old_price_usd: b.old_price_usd ? Number(b.old_price_usd) : 0, weight: b.weight || '', stock: b.stock | 0, image_url: b.image_url || '', badges: b.badges || [], perishable: !!b.perishable, is_active: true, sort: b.sort | 0 });
+          await J.put(env, 'prod:' + id, { id, name_ru: b.name_ru, name_en: b.name_en || '', name_uz: b.name_uz || '', desc_ru: b.desc_ru || '', desc_en: b.desc_en || '', desc_uz: b.desc_uz || '', cat: b.cat || 1, price_usd: Number(b.price_usd) || 0, old_price_usd: b.old_price_usd ? Number(b.old_price_usd) : 0, weight: b.weight || '', stock: b.stock | 0, image_url: b.image_url || '', badges: b.badges || [], perishable: !!b.perishable, is_active: true, sort: b.sort | 0, images: Array.isArray(b.images) ? b.images.slice(0, 8) : [] });
           const ids = await J.get(env, 'prod_ids', []); ids.push(id); await J.put(env, 'prod_ids', ids);
           await J.put(env, 'next_prod', id + 1);
         }
@@ -445,6 +454,31 @@ async function handle(request, env) {
         if (!pr) return json({ ok: false, error: 'not_found' }, 404);
         pr.is_deleted = true; pr.deleted_at = new Date().toISOString();
         await J.put(env, 'prod:' + id, pr);
+        return json({ ok: true });
+      }
+      if (p === '/api/admin/product/bulk' && request.method === 'POST') {
+        const ids = (body.ids || []).map(Number).filter(Boolean); const act = body.action;
+        for (const id of ids) {
+          const pr = await J.get(env, 'prod:' + id); if (!pr) continue;
+          if (act === 'hide') pr.is_active = false;
+          else if (act === 'show') pr.is_active = true;
+          else if (act === 'category') pr.cat = body.cat | 0;
+          else if (act === 'discount' && body.pct > 0) { const pct = Math.min(90, Math.max(1, body.pct | 0)); pr.old_price_usd = Math.round(pr.price_usd * 100 / (100 - pct) * 100) / 100; }
+          else if (act === 'discount0') pr.old_price_usd = 0;
+          await J.put(env, 'prod:' + id, pr);
+        }
+        return json({ ok: true, n: ids.length });
+      }
+      if (p === '/api/admin/product/purge' && request.method === 'POST') {
+        const pr = await J.get(env, 'prod:' + body.id); if (!pr) return json({ ok: false, error: 'not_found' }, 404);
+        for (const u of (pr.images || [])) await delPhotoByUrl(u);
+        await delPhotoByUrl(pr.image_url);
+        await J.del(env, 'prod:' + body.id);
+        const ids = await J.get(env, 'prod_ids', []); await J.put(env, 'prod_ids', ids.filter(x => Number(x) !== Number(body.id)));
+        return json({ ok: true });
+      }
+      if (p === '/api/admin/photo/delete' && request.method === 'POST') {
+        await delPhotoByUrl(body.url);
         return json({ ok: true });
       }
       if (p === '/api/admin/product/restore' && request.method === 'POST') {
@@ -469,7 +503,7 @@ async function handle(request, env) {
         if (b.id) { const old = await J.get(env, 'cat:' + b.id); if (!old) return json({ ok: false }, 404); await J.put(env, 'cat:' + b.id, { ...old, ...b, id: old.id }); }
         else {
           const id = await J.get(env, 'next_cat', 1);
-          await J.put(env, 'cat:' + id, { id, name_ru: b.name_ru || '', name_en: b.name_en || b.name_ru || '', name_uz: b.name_uz || '', icon: b.icon || '', hidden: false, sort: b.sort | 0 });
+          await J.put(env, 'cat:' + id, { id, name_ru: b.name_ru || '', name_en: b.name_en || b.name_ru || '', name_uz: b.name_uz || '', icon: b.icon || '', icon_url: b.icon_url || '', hidden: false, sort: b.sort | 0 });
           const ids = await J.get(env, 'cat_ids', []); ids.push(id); await J.put(env, 'cat_ids', ids);
           await J.put(env, 'next_cat', id + 1);
         }
@@ -477,8 +511,16 @@ async function handle(request, env) {
       }
       if (p === '/api/admin/category/delete' && request.method === 'POST') {
         const id = body.id;
+        const c = await J.get(env, 'cat:' + id);
+        if (c) await delPhotoByUrl(c.icon_url);
         await J.del(env, 'cat:' + id);
         const ids = await J.get(env, 'cat_ids', []); await J.put(env, 'cat_ids', ids.filter(x => Number(x) !== Number(id)));
+        for (const pid of await J.get(env, 'prod_ids', [])) { const pr = await J.get(env, 'prod:' + pid); if (pr && Number(pr.cat) === Number(id)) { pr.cat = 0; await J.put(env, 'prod:' + pid, pr); } }
+        return json({ ok: true });
+      }
+      if (p === '/api/admin/category/reorder' && request.method === 'POST') {
+        const ids = body.ids || []; let s = 1;
+        for (const id of ids) { const c = await J.get(env, 'cat:' + id); if (c) { c.sort = s++; await J.put(env, 'cat:' + id, c); } }
         return json({ ok: true });
       }
       if (p === '/api/admin/banners') {
@@ -492,7 +534,7 @@ async function handle(request, env) {
         if (b.id) { const old = await J.get(env, 'banner:' + b.id); if (!old) return json({ ok: false }, 404); await J.put(env, 'banner:' + b.id, { ...old, ...b, id: old.id }); }
         else {
           const id = await J.get(env, 'next_banner', 1);
-          await J.put(env, 'banner:' + id, { id, image_url: b.image_url || '', title_ru: b.title_ru || '', title_en: b.title_en || '', sub_ru: b.sub_ru || '', sub_en: b.sub_en || '', btn_ru: b.btn_ru || '', btn_en: b.btn_en || '', btn_uz: b.btn_uz || '', link: b.link || '' });
+          await J.put(env, 'banner:' + id, { id, image_url: b.image_url || '', title_ru: b.title_ru || '', title_en: b.title_en || '', sub_ru: b.sub_ru || '', sub_en: b.sub_en || '', btn_ru: b.btn_ru || '', btn_en: b.btn_en || '', btn_uz: b.btn_uz || '', link: b.link || '', pos: b.pos || 'left', tcol: b.tcol || 'white', dim: Math.min(80, Math.max(0, b.dim | 0)) || 40, dfrom: b.dfrom || '', dto: b.dto || '', hidden: !!b.hidden, sort: b.sort | 0 });
           const ids = await J.get(env, 'banner_ids', []); ids.push(id); await J.put(env, 'banner_ids', ids);
           await J.put(env, 'next_banner', id + 1);
         }
@@ -500,9 +542,24 @@ async function handle(request, env) {
       }
       if (p === '/api/admin/banner/delete' && request.method === 'POST') {
         const id = body.id;
+        const b = await J.get(env, 'banner:' + id);
+        if (b) await delPhotoByUrl(b.image_url);
         await J.del(env, 'banner:' + id);
         const ids = await J.get(env, 'banner_ids', []); await J.put(env, 'banner_ids', ids.filter(x => Number(x) !== Number(id)));
         return json({ ok: true });
+      }
+      if (p === '/api/admin/banner/reorder' && request.method === 'POST') {
+        const ids = body.ids || []; let s = 1;
+        for (const id of ids) { const b = await J.get(env, 'banner:' + id); if (b) { b.sort = s++; await J.put(env, 'banner:' + id, b); } }
+        return json({ ok: true });
+      }
+      if (p === '/api/admin/banner/duplicate' && request.method === 'POST') {
+        const o = await J.get(env, 'banner:' + body.id); if (!o) return json({ ok: false, error: 'not_found' }, 404);
+        const id = await J.get(env, 'next_banner', 1);
+        await J.put(env, 'banner:' + id, { ...o, id, title_ru: (o.title_ru || '') + ' (копия)', hidden: true, sort: (o.sort || 0) + 1 });
+        const ids = await J.get(env, 'banner_ids', []); ids.push(id); await J.put(env, 'banner_ids', ids);
+        await J.put(env, 'next_banner', id + 1);
+        return json({ ok: true, id });
       }
       if (p === '/api/admin/promos') {
         const ids = await J.get(env, 'promo_ids', []);
@@ -574,7 +631,7 @@ async function handle(request, env) {
         const clIds = (await J.get(env, 'client_ids', [])).slice(0, 40); // лимит подзапросов Worker
         let sent = 0, failed = 0;
         for (const tid of clIds) {
-          const r = await tgApi(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text: '🤍 <b>SAHAR</b>\n' + esc(text), reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=11' } }]] } });
+          const r = await tgApi(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text: '🤍 <b>SAHAR</b>\n' + esc(text), reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=12' } }]] } });
           if (r && r.ok) sent++; else failed++;
         }
         return json({ ok: true, sent, failed });
@@ -594,6 +651,7 @@ async function handle(request, env) {
           return json({ ok: true, settings: merged });
         }
       }
+      async function delPhotoByUrl(u){ try { const m = String(u || '').match(/\/img\/(\d+)$/); if (m) await J.del(env, 'img:' + m[1]); } catch (e) {} }
       if (p === '/api/admin/upload' && request.method === 'POST') {
         const { b64, mime } = body;
         if (!b64) return json({ ok: false, error: 'empty' }, 400);
@@ -634,10 +692,10 @@ async function handleUpdate(env, u) {
         await tgApi(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML',
           text: '👑 <b>SAHAR — панель владельца</b>\n\n🆔 Ваш Telegram ID: <code>' + tid + '</code>\n/orders — последние заказы\nЛюбое сообщение покупателя приходит сюда.',
           reply_markup: { inline_keyboard: [
-            [{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=11' } }],
-            [{ text: '🎛 Админ-панель', web_app: { url: env.WEBAPP_URL + 'admin.html?v=11' } }],
+            [{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=12' } }],
+            [{ text: '🎛 Админ-панель', web_app: { url: env.WEBAPP_URL + 'admin.html?v=12' } }],
           ] } });
-        await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=11' } } });
+        await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=12' } } });
         return;
       }
       if (m.text && m.text.startsWith('/orders')) { await sendOrders(env, tid, false); return; }
@@ -667,8 +725,8 @@ async function handleUpdate(env, u) {
     if (m.text && m.text.startsWith('/start')) {
       await tgApi(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML',
         text: 'Добро пожаловать в <b>SAHAR</b> ✦\nАвторские сладости ручной работы: трюфели, шоколад, восточные десерты и подарочные наборы.\n\nДоставка по странам СНГ. Откройте магазин и закажите за пару касаний.',
-        reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=11' } }]] } });
-      await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=11' } } });
+        reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=12' } }]] } });
+      await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=12' } } });
       return;
     }
     if (m.contact) {
@@ -699,7 +757,7 @@ async function handleUpdate(env, u) {
         '💬 <b>Сообщение от клиента</b>\n' + esc(msgText || '(вложение)') + '\n👤 ' + esc(m.from.first_name || '') + ' · <a href="tg://user?id=' + tid + '">' + tid + '</a>',
         { inline_keyboard: [[{ text: '💬 Ответить', callback_data: 'rep:' + tid }]] });
     }
-    await tgApi(env, 'sendMessage', { chat_id: tid, text: '✅ Сообщение отправлено. Мы ответим здесь и в разделе «Сообщения» магазина.', reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=11' } }]] } });
+    await tgApi(env, 'sendMessage', { chat_id: tid, text: '✅ Сообщение отправлено. Мы ответим здесь и в разделе «Сообщения» магазина.', reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=12' } }]] } });
     return;
   }
   if (u.callback_query) {

@@ -57,6 +57,32 @@ a{color:var(--gold2)}
 #sheet.open{display:block}
 #sheetIn{position:absolute;left:0;right:0;bottom:0;background:var(--bg);border-radius:22px 22px 0 0;max-height:86dvh;overflow-y:auto;padding:18px 18px calc(env(safe-area-inset-bottom,0px) + 18px)}
 .kb{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.seg{display:flex;gap:6px;margin-top:9px}
+.seg button{flex:1;border:1.5px solid var(--hair);background:var(--surface);border-radius:12px;padding:10px 6px;font:800 12.5px 'Manrope';cursor:pointer;color:var(--text)}
+.seg button.on{background:#4B2B20;color:#fff;border-color:#4B2B20}
+.ph-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.ph-cell{position:relative;border-radius:10px;overflow:hidden;background:var(--sand)}
+.ph-cell img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}
+.ph-cell .main-mark{position:absolute;top:4px;left:4px;background:#4B2B20;color:#fff;font-size:9px;font-weight:800;border-radius:6px;padding:2px 5px}
+.ph-acts{display:flex;gap:3px;padding:4px}
+.ph-acts button{flex:1;border:none;background:var(--sand);border-radius:7px;font-size:13px;padding:5px 0;cursor:pointer}
+.em-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin-top:8px}
+.em-grid button{font-size:24px;background:none;border:none;border-radius:9px;padding:6px 0;cursor:pointer}
+.em-grid button.on{background:#4B2B20;border-radius:9px}
+.prev-phone{width:100%;max-width:360px;margin:12px auto;border:5px solid #4B2B20;border-radius:34px;padding:10px 10px 14px;background:var(--sand)}
+.prev-screen{position:relative;height:180px;border-radius:20px;overflow:hidden;background:var(--sand)}
+.prev-screen img{width:100%;height:100%;object-fit:cover;display:block}
+.prev-txt{position:absolute;left:0;right:0;bottom:0;padding:44px 13px 11px;color:#fff}
+.prev-txt .pbt{font:800 16px 'Manrope';line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.prev-txt .pbs{font:600 10.5px 'Manrope';margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prev-btn{display:inline-block;margin-top:8px;background:#fff;color:#4B2B20;font:800 11px 'Manrope';border-radius:12px;padding:7px 13px}
+.crop-ov{position:fixed;inset:0;background:rgba(20,12,6,.94);z-index:99;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px}
+.crop-ov.hidden{display:none}
+#cropCv{touch-action:none;border-radius:14px;background:#F1EBDD}
+input[type=range]{width:100%;margin-top:14px;accent-color:#4B2B20}
+.bulkbar{background:#4B2B20;border-radius:14px;padding:10px;margin-top:10px;color:#fff;display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.bulkbar button{border:none;border-radius:10px;padding:9px 11px;font:800 12px 'Manrope';cursor:pointer}
+.bulkbar select,.bulkbar input{border:none;border-radius:9px;padding:8px;font:700 12px 'Manrope'}
 .kb button{padding:8px 12px;border-radius:10px;border:1px solid var(--hair);background:var(--surface);font:700 12px 'Manrope';cursor:pointer;color:var(--text)}
 .kb button.on{border-color:var(--gold1);color:var(--gold2)}
 </style>
@@ -74,6 +100,16 @@ a{color:var(--gold2)}
   </div>
 </div>
 <div id="sheet"><div id="sheetIn"></div></div>
+<div id="cropWrap" class="crop-ov hidden">
+  <div style="color:#fff;font:800 15px 'Manrope';margin-bottom:10px">Обрежьте фото (1:1) — двигайте и приближайте</div>
+  <canvas id="cropCv" width="320" height="320"></canvas>
+  <div style="width:280px"><input type="range" id="cropZoom" min="0" max="100" value="0" oninput="cropZoomSet(this.value)"></div>
+  <div style="display:flex;gap:10px;margin-top:14px">
+    <button class="btn btn-gold" onclick="cropDone()">✔ Готово</button>
+    <button class="btn btn-ghost" onclick="cropCancel()" style="background:#fff;color:#4B2B20">Отмена</button>
+  </div>
+</div>
+<input type="file" id="multiPhotoFile" accept="image/*" multiple class="hidden" onchange="onPickMulti(event)">
 <div id="toast"></div>
 <input type="file" id="photoFile" accept="image/*" class="hidden" onchange="onPickPhoto(event)">
 <script>
@@ -100,8 +136,9 @@ async function api(path, body){
   return r.json();
 }
 const S = { pendingChatPhoto: '' };
-let threadTimer = null, TAB = 'dash', cats = [], prodsCache = [], chatTid = 0, editPid = null, editBannerId = null;
-const TABS = [['dash','📊 Дашборд'],['orders','📦 Заказы'],['products','🍯 Товары'],['clients','👥 Клиенты'],['chat','💬 Сообщения'],['more','⋯ Ещё']];
+let threadTimer = null, TAB = 'dash', cats = [], prodsCache = [], chatTid = 0, editPid = null, editBannerId = null, editCatId = null, pfImages = [];
+let plQ = '', plCat = 'all', plHidden = false, plOut = false, plSel = new Set();
+const TABS = [['dash','📊 Дашборд'],['orders','📦 Заказы'],['products','🍯 Товары'],['design','🎨 Оформление'],['clients','👥 Клиенты'],['chat','💬 Сообщения'],['more','⋯ Ещё']];
 function renderTabs(){ $('tabs').innerHTML = TABS.map(([id,n])=>`<button class="tab ${TAB===id?'on':''}" onclick="TAB='${id}';renderTabs();render()">${n}</button>`).join(''); }
 async function render(){
   const c = $('content');
@@ -111,6 +148,7 @@ async function render(){
     if (TAB==='products') return renderProducts();
     if (TAB==='clients') return renderClients();
     if (TAB==='chat') return renderChatList();
+    if (TAB==='design') return renderDesign();
     if (TAB==='cats') return renderCats();
     if (TAB==='banners') return renderBannersAdm();
     if (TAB==='promos') return renderPromos();
@@ -189,64 +227,162 @@ async function renderProducts(){
   const d = await api('/admin/products');
   prodsCache = d.products; cats = d.categories;
   const del = d.deleted || [];
+  let list = prodsCache.slice();
+  if (plQ) list = list.filter(p => ((p.name_ru||'')+' '+(p.name_en||'')+' '+(p.name_uz||'')).toLowerCase().includes(plQ.toLowerCase()));
+  if (plCat !== 'all') list = list.filter(p => String(p.cat) === String(plCat));
+  if (plHidden) list = list.filter(p => p.is_active === false);
+  if (plOut) list = list.filter(p => !p.stock);
+  list.sort((a,b)=>(a.sort||0)-(b.sort||0));
+  const catName = id => { const c = cats.find(x=>String(x.id)===String(id)); return c?c.name_ru:'Без категории'; };
   $('content').innerHTML = `
   <button class="btn btn-gold blk" onclick="editPid=null;openProductForm()">＋ Добавить товар</button>
-  ${d.products.map(p=>`
+  <div class="field"><input id="plq" placeholder="🔍 Поиск по названию" value="${escHtml(plQ)}" oninput="plQ=this.value;renderProducts()"></div>
+  <div style="display:flex;gap:7px;margin-top:9px;flex-wrap:wrap">
+    <select style="flex:1;min-width:130px;border:1px solid var(--hair);border-radius:12px;padding:10px;font:700 12.5px 'Manrope'" onchange="plCat=this.value;renderProducts()">
+      <option value="all" ${plCat==='all'?'selected':''}>Все категории</option>
+      <option value="0" ${plCat==='0'?'selected':''}>Без категории</option>
+      ${cats.map(c=>`<option value="${c.id}" ${String(plCat)===String(c.id)?'selected':''}>${c.name_ru}</option>`).join('')}
+    </select>
+    <button class="btn btn-ghost btn-xs" style="flex:1" onclick="plHidden=!plHidden;renderProducts()">${plHidden?'☑ Скрытые':'☐ Скрытые'}</button>
+    <button class="btn btn-ghost btn-xs" style="flex:1" onclick="plOut=!plOut;renderProducts()">${plOut?'☑ Нет в наличии':'☐ Нет в наличии'}</button>
+  </div>
+  ${plSel.size ? `<div class="bulkbar">
+    <b style="font-size:12.5px">Выбрано: ${plSel.size}</b>
+    <button style="background:#fff" onclick="bulkAct('hide')">🙈 Скрыть</button>
+    <button style="background:#fff" onclick="bulkAct('show')">👁 Показать</button>
+    <button style="background:#fff" onclick="bulkAct('delete')">🗑 В корзину</button>
+    <select id="bulkCat"><option value="">→ категория…</option>${cats.map(c=>`<option value="${c.id}">${c.name_ru}</option>`).join('')}</select>
+    <button style="background:#fff" onclick="bulkCatApply()">Применить</button>
+    <input id="bulkPct" type="number" min="1" max="90" placeholder="% скидки" style="width:80px">
+    <button style="background:#fff" onclick="bulkDiscApply()">−%</button>
+    <button style="background:rgba(255,255,255,.2);color:#fff" onclick="plSel.clear();renderProducts()">✕ Сброс</button>
+  </div>` : ''}
+  ${list.map(p=>`
   <div class="card">
     <div style="display:flex;gap:11px">
-      <img src="${p.image_url||''}" style="width:64px;height:64px;border-radius:12px;object-fit:cover;flex:none;background:var(--sand)">
+      <input type="checkbox" ${plSel.has(p.id)?'checked':''} onchange="this.checked?plSel.add(${p.id}):plSel.delete(${p.id});renderProducts()" style="width:22px;height:22px;flex:none;accent-color:#4B2B20">
+      <img src="${(p.images&&p.images[0])||p.image_url||''}" style="width:64px;height:64px;border-radius:12px;object-fit:cover;flex:none;background:var(--sand)">
       <div style="flex:1;min-width:0">
         <b>${p.name_ru}</b>
-        <div class="muted" style="font-size:12px">$${p.price_usd}${p.old_price_usd?' · было $'+p.old_price_usd:''} · остаток ${p.stock}${p.perishable?' · ⏰ скоропорт':''}${p.is_active===false?' · <b style="color:var(--err)">скрыт</b>':''}</div>
+        <div class="muted" style="font-size:12px">${catName(p.cat)} · $${p.price_usd}${p.old_price_usd?' · <b style="color:#C0392B">−'+Math.round((1-p.price_usd/p.old_price_usd)*100)+'%</b>':''}</div>
+        <div class="muted" style="font-size:12px">остаток ${p.stock}${p.stock===0?' · <b style="color:var(--err)">нет в наличии</b>':''}${(p.images||[]).length?' · 📷 '+(p.images.length):''}${p.perishable?' · ⏰':''}${p.is_active===false?' · <b style="color:var(--err)">скрыт</b>':''}</div>
       </div>
     </div>
     <div style="display:flex;gap:7px;margin-top:10px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-xs" onclick="editPid=${p.id};openProductForm()">✏️ Изменить</button>
       <button class="btn btn-ghost btn-xs" onclick="dupProduct(${p.id})">⧉ Дублировать</button>
       <button class="btn btn-ghost btn-xs" onclick="toggleActive(${p.id},${p.is_active!==false})">${p.is_active===false?'👁 Показать':'🙈 Скрыть'}</button>
+      <button class="btn btn-ghost btn-xs" onclick="moveProduct(${p.id},-1)">↑</button>
+      <button class="btn btn-ghost btn-xs" onclick="moveProduct(${p.id},1)">↓</button>
       <button class="btn btn-del btn-xs" onclick="delProduct(${p.id})">🗑 Удалить</button>
     </div>
-  </div>`).join('')}
+  </div>`).join('') || '<div class="empty">Ничего не найдено — измените фильтры</div>'}
   ${del.length?`<div class="sect-t">🗑 Корзина (${del.length})</div>
   ${del.map(p=>`<div class="card row" style="opacity:.65"><div style="flex:1"><b>${escHtml(p.name_ru)}</b><div class="muted" style="font-size:12px">удалён ${(p.deleted_at||'').slice(0,10)} · $${p.price_usd}</div></div>
-    <button class="btn btn-gold btn-xs" onclick="restoreProduct(${p.id})">↩️ Восстановить</button></div>`).join('')}`:''}`;
+    <button class="btn btn-gold btn-xs" onclick="restoreProduct(${p.id})">↩️</button>
+    <button class="btn btn-del btn-xs" onclick="purgeProduct(${p.id})">🔥 Навсегда</button></div>`).join('')}`:''}`;
+}
+function bulkAct(act){ if (!plSel.size) return;
+  if (act === 'delete' && !confirm('Убрать выбранные товары (' + plSel.size + ') в корзину?')) return;
+  guard(async ()=>{ await api('/admin/product/bulk', { ids: [...plSel], action: act }); plSel.clear(); toast('Применено'); renderProducts(); });
+}
+function bulkCatApply(){ const c = $('bulkCat').value; if (!c) { toast('Выберите категорию'); return; }
+  guard(async ()=>{ await api('/admin/product/bulk', { ids: [...plSel], action: 'category', cat: Number(c) }); plSel.clear(); toast('Категория изменена'); renderProducts(); });
+}
+function bulkDiscApply(){ const pct = Number($('bulkPct').value); if (!pct || pct < 1 || pct > 90) { toast('Введите % от 1 до 90'); return; }
+  if (!confirm('Включить скидку −' + pct + '% на выбранные товары (' + plSel.size + ')?')) return;
+  guard(async ()=>{ await api('/admin/product/bulk', { ids: [...plSel], action: 'discount', pct }); plSel.clear(); toast('Скидка включена'); renderProducts(); });
+}
+function moveProduct(id, dir){ guard(async ()=>{
+  const cur = prodsCache.find(x=>x.id===id); if (!cur) return;
+  const sorted = prodsCache.slice().sort((a,b)=>(a.sort||0)-(b.sort||0));
+  const i = sorted.findIndex(x=>x.id===id), j = i + dir;
+  if (j < 0 || j >= sorted.length) return;
+  await api('/admin/product', { product: { id: sorted[i].id, sort: sorted[j].sort || (j+1) } });
+  await api('/admin/product', { product: { id: sorted[j].id, sort: sorted[i].sort || (i+1) } });
+  toast('Порядок изменён'); renderProducts();
+}); }
+function purgeProduct(id){ const p = prodsCache.find(x=>x.id===id) || {};
+  if (!confirm('Удалить «' + (p.name_ru||'товар') + '» НАВСЕГДА? Фото будут удалены из хранилища. Это необратимо.')) return;
+  guard(async ()=>{ await api('/admin/product/purge', { id }); toast('Удалено навсегда'); renderProducts(); });
 }
 function openSheet(html){ $('sheetIn').innerHTML = html; $('sheet').classList.add('open'); }
 function closeSheet(){ $('sheet').classList.remove('open'); }
 function catSelect(sel){ return `<div class="field"><label>Категория</label><select id="pfCat">${cats.map(c=>`<option value="${c.id}" ${String(c.id)===String(sel)?'selected':''}>${c.name_ru}</option>`).join('')}</select></div>`; }
 function openProductForm(){
   const p = editPid ? prodsCache.find(x=>x.id===editPid) : null;
+  pfImages = p && Array.isArray(p.images) ? p.images.slice(0, 8) : [];
+  const pct = p && p.old_price_usd > p.price_usd ? Math.round((1 - p.price_usd / p.old_price_usd) * 100) : '';
   openSheet(`
   <div class="serif" style="font-size:19px;font-weight:700">${p?'Изменить товар':'Новый товар'}</div>
-  <div class="field"><label>Название (RU)</label><input id="pfNameRu" value="${p?p.name_ru:''}"></div>
-  <div class="field"><label>Name (EN)</label><input id="pfNameEn" value="${p?(p.name_en||''):''}"></div>
-  <div class="field"><label>Nomi (UZ)</label><input id="pfNameUz" value="${p?(p.name_uz||''):''}"></div>
-  <div class="field"><label>Описание (RU)</label><textarea id="pfDescRu" rows="3">${p?p.desc_ru:''}</textarea></div>
-  <div class="field"><label>Description (EN)</label><textarea id="pfDescEn" rows="2">${p?(p.desc_en||''):''}</textarea></div>
-  <div class="field"><label>Tavsif (UZ)</label><textarea id="pfDescUz" rows="2">${p?(p.desc_uz||''):''}</textarea></div>
-  ${catSelect(p?p.cat:cats[0]&&cats[0].id)}
-  <div class="frow"><div class="field"><label>Цена, USD</label><input id="pfPrice" type="number" step="0.5" value="${p?p.price_usd:''}"></div>
-  <div class="field"><label>Старая цена, USD</label><input id="pfOld" type="number" step="0.5" value="${p?(p.old_price_usd||''):''}"></div></div>
-  <div class="frow"><div class="field"><label>Вес / объём</label><input id="pfWeight" value="${p?(p.weight||''):''}"></div>
-  <div class="field"><label>Остаток</label><input id="pfStock" type="number" value="${p?p.stock:10}"></div></div>
-  <div class="kb" id="pfBadges">${['hit','new','premium','limited'].map(b=>`<button class="${p&&(p.badges||[]).includes(b)?'on':''}" onclick="this.classList.toggle('on')">${{hit:'Хит',new:'Новинка',premium:'Premium',limited:'Ограниченно'}[b]}</button>`).join('')}</div>
+  <div class="field"><label>Фотографии (до 8) — первое = обложка в каталоге</label>
+    <div id="pfGrid" class="ph-grid">${photoGridHtml()}</div>
+    ${pfImages.length < 8 ? `<button class="btn btn-gold blk" style="margin-top:9px" onclick="if(pfImages.length>=8){toast('Максимум 8 фото');return;}\$('multiPhotoFile').click()">🖼 Добавить фото (автосжатие + обрезка 1:1)</button>` : '<div class="muted" style="margin-top:8px;font-size:12px">Достигнут лимит 8 фото</div>'}
+  </div>
+  <div class="field"><label>Название (RU)</label><input id="pfNameRu" value="${p?escHtml(p.name_ru):''}"></div>
+  <div class="field"><label>Name (EN)</label><input id="pfNameEn" value="${p?escHtml(p.name_en||''):''}"></div>
+  <div class="field"><label>Nomi (UZ)</label><input id="pfNameUz" value="${p?escHtml(p.name_uz||''):''}"></div>
+  <div class="field"><label>Описание (RU)</label><textarea id="pfDescRu" rows="3">${p?escHtml(p.desc_ru||''):''}</textarea></div>
+  <div class="field"><label>Description (EN)</label><textarea id="pfDescEn" rows="2">${p?escHtml(p.desc_en||''):''}"></textarea></div>
+  <div class="field"><label>Tavsif (UZ)</label><textarea id="pfDescUz" rows="2">${p?escHtml(p.desc_uz||''):''}"></textarea></div>
+  ${catSelect(p?p.cat:(cats[0]&&cats[0].id||0))}
+  <div class="frow">
+    <div class="field"><label>Цена, USD</label><input id="pfPrice" type="number" step="0.5" value="${p?p.price_usd:''}" oninput="discFromPrice()"></div>
+    <div class="field"><label>Старая цена, USD</label><input id="pfOld" type="number" step="0.5" value="${p?(p.old_price_usd||''):''}" oninput="discFromOld()"></div>
+  </div>
+  <div class="frow">
+    <div class="field"><label>Скидка % (автопересчёт)</label><input id="pfPct" type="number" min="1" max="90" value="${pct}" placeholder="напр. 20" oninput="discFromPct()"></div>
+    <div class="field"><label>Вес / штук</label><input id="pfWeight" value="${p?escHtml(p.weight||''):''}"></div>
+  </div>
+  <div class="frow">
+    <div class="field"><label>Остаток (0 = нет в наличии)</label><input id="pfStock" type="number" value="${p?p.stock:10}"></div>
+    <div class="field"><label>Порядок на витрине</label><input id="pfSort" type="number" value="${p?(p.sort||0):0}"></div>
+  </div>
+  <div class="field"><label>Бейджи</label>
+    <div class="kb" id="pfBadges">${['hit','new','sale','premium','limited'].map(b=>`<button class="${p&&(p.badges||[]).includes(b)?'on':''}" onclick="this.classList.toggle('on')">${{hit:'Хит',new:'Новинка',sale:'Акция',premium:'Premium',limited:'Ограниченно'}[b]}</button>`).join('')}</div>
+  </div>
   <div class="kb"><button id="pfPerish" class="${p&&p.perishable?'on':''}" onclick="this.classList.toggle('on')">⏰ Скоропортящийся</button></div>
-  <div class="field"><label>Фото (галерея или URL)</label>
-    <div style="display:flex;gap:8px"><button class="btn btn-ghost btn-xs" onclick="S.pickTarget='product';$('photoFile').click()">🖼 Загрузить</button><input id="pfImage" value="${p?(p.image_url||''):''}" style="flex:1"></div></div>
-  <img id="pfPreview" class="img-prev ${p&&p.image_url?'':'hidden'}" src="${p&&p.image_url?p.image_url:''}">
   <button class="btn btn-gold blk" onclick="saveProduct()">💾 Сохранить</button>
   <button class="btn btn-ghost blk" onclick="closeSheet()">Отмена</button>`);
 }
+function photoGridHtml(){
+  return pfImages.map((u,i)=>`<div class="ph-cell">
+    <img src="${u}">
+    ${i===0?'<span class="main-mark">Обложка</span>':''}
+    <div class="ph-acts">
+      <button title="Сделать главным" onclick="phMain(${i})">⭐</button>
+      <button title="Раньше" ${i===0?'disabled style="opacity:.3"':''} onclick="phMove(${i},-1)">◀</button>
+      <button title="Позже" ${i===pfImages.length-1?'disabled style="opacity:.3"':''} onclick="phMove(${i},1)">▶</button>
+      <button title="Удалить" onclick="phDel(${i})">🗑</button>
+    </div>
+  </div>`).join('');
+}
+function renderPhotoGrid(){ const g = $('pfGrid'); if (g) g.innerHTML = photoGridHtml(); }
+function phMain(i){ const u = pfImages.splice(i, 1)[0]; pfImages.unshift(u); renderPhotoGrid(); }
+function phMove(i, d){ const j = Math.max(0, Math.min(pfImages.length - 1, i + d));
+  const t = pfImages[i]; pfImages[i] = pfImages[j]; pfImages[j] = t; renderPhotoGrid(); }
+function phDel(i){ if (!confirm('Удалить это фото? Оно будет удалено и из хранилища.')) return;
+  const u = pfImages[i]; pfImages.splice(i, 1); renderPhotoGrid();
+  api('/admin/photo/delete', { url: u }).then(()=>toast('Фото удалено')).catch(()=>toast('Фото убрано из товара'));
+}
+function discFromPrice(){ const pct = $('pfPct'); if (pct && pct.value) discFromPct(); }
+function discFromOld(){ const price = Number($('pfPrice').value)||0, old = Number($('pfOld').value)||0;
+  const pct = $('pfPct'); if (pct) pct.value = (old > price && price > 0) ? Math.round((1 - price/old) * 100) : ''; }
+function discFromPct(){ const price = Number($('pfPrice').value)||0, pct = Number($('pfPct').value)||0;
+  const old = $('pfOld'); if (old) old.value = (pct > 0 && price > 0) ? Math.round(price * 100 / (100 - pct) * 100) / 100 : ''; }
 function saveProduct(){ guard(async ()=>{
   const product = { name_ru:$('pfNameRu').value.trim(), name_en:$('pfNameEn').value.trim(), name_uz:$('pfNameUz').value.trim(),
     desc_ru:$('pfDescRu').value.trim(), desc_en:$('pfDescEn').value.trim(), desc_uz:$('pfDescUz').value.trim(), cat:Number($('pfCat').value),
     price_usd:Number($('pfPrice').value)||0, old_price_usd:Number($('pfOld').value)||0,
     weight:$('pfWeight').value.trim(), stock:Number($('pfStock').value)||0,
-    badges:[...$('pfBadges').querySelectorAll('.on')].map(b=>({'Хит':'hit','Новинка':'new','Premium':'premium','Ограниченно':'limited'}[b.textContent])),
-    perishable:$('pfPerish').classList.contains('on'), image_url:$('pfImage').value.trim() };
+    sort:Number($('pfSort').value)||0,
+    badges:[...$('pfBadges').querySelectorAll('.on')].map(b=>({'Хит':'hit','Новинка':'new','Акция':'sale','Premium':'premium','Ограниченно':'limited'}[b.textContent])).filter(Boolean),
+    perishable:$('pfPerish').classList.contains('on'), images: pfImages.slice(0,8),
+    image_url: pfImages[0] || (editPid ? ((prodsCache.find(x=>x.id===editPid)||{}).image_url||'') : '') };
   if (editPid) product.id = editPid;
   if (!product.name_ru || !product.price_usd){ toast('Название и цена обязательны'); return; }
-  await api('/admin/product', { product }); toast('Сохранено'); closeSheet(); render();
+  if (product.old_price_usd && product.old_price_usd <= product.price_usd){ toast('Старая цена должна быть выше текущей'); return; }
+  await api('/admin/product', { product }); toast('Сохранено — покупатели уже видят'); closeSheet(); render();
 }); }
 function dupProduct(id){ guard(async ()=>{ await api('/admin/product/duplicate', { id }); toast('Копия создана (скрыта)'); render(); }); }
 function toggleActive(id, hide){ guard(async ()=>{ const p = prodsCache.find(x=>x.id===id); p.is_active = hide ? false : true; await api('/admin/product', { product: { id, is_active: p.is_active } }); toast(hide?'Скрыт':'Показан'); render(); }); }
@@ -258,6 +394,19 @@ function restoreProduct(id){ guard(async ()=>{
 }); }
 async function onPickPhoto(ev){
   const f = ev.target.files[0]; if (!f) return;
+  const tgt = S.pickTarget || ''; S.pickTarget = '';
+  if (tgt === 'bannerPhoto') { startCrop(f, async (data) => {
+      try { window._bn.image_url = await uploadB64(data); toast('Фото баннера загружено');
+        const bOpen = $('sheet').classList.contains('open'); if (bOpen) { bnPrev(); openBannerForm(); } }
+      catch(e){ toast('Не удалось загрузить: ' + e.message); } }); return; }
+  if (tgt === 'catIcon') { startCrop(f, async (data) => {
+      try { window._cat.icon_url = await uploadB64(data); window._cat.icon = '';
+        if ($('cfIconPrev')) { $('cfIconPrev').innerHTML = '<img src="' + window._cat.icon_url + '" style="width:30px;height:30px;border-radius:8px;object-fit:cover">'; $('cfIconCustom').value = ''; }
+        toast('Иконка загружена'); }
+      catch(e){ toast('Не удалось загрузить: ' + e.message); } }); return; }
+  if (tgt === 'productPhoto') { startCrop(f, async (data) => {
+      try { pfImages.push(await uploadB64(data)); renderPhotoGrid(); }
+      catch(e){ toast('Не удалось загрузить: ' + e.message); } }); return; }
   try {
     const b64 = await new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>{ const c=document.createElement('canvas'); const sc=Math.min(1,900/Math.max(img.width,img.height)); c.width=img.width*sc;c.height=img.height*sc; c.getContext('2d').drawImage(img,0,0,c.width,c.height); res(c.toDataURL('image/jpeg',.85)); }; img.onerror=rej; img.src=URL.createObjectURL(f); });
     const r = await api('/admin/upload', { b64: b64.split(',')[1], mime:'image/jpeg' });
@@ -314,8 +463,7 @@ function sendReply(){
 // ---------- Ещё ----------
 async function renderMore(){
   $('content').innerHTML = `
-  <button class="btn btn-gold blk" onclick="TAB='cats';renderTabs();renderCats()">🗂 Категории</button>
-  <button class="btn btn-gold blk" onclick="TAB='banners';renderTabs();renderBannersAdm()">🖼 Баннеры</button>
+  <button class="btn btn-gold blk" onclick="TAB='design';renderTabs();renderDesign()">🎨 Оформление сайта: баннеры, категории</button>
   <button class="btn btn-gold blk" onclick="TAB='promos';renderTabs();renderPromos()">🎟 Промокоды</button>
   <button class="btn btn-gold blk" onclick="openBroadcast()">📣 Рассылка клиентам</button>
   <button class="btn btn-gold blk" onclick="renderSettingsAdm()">⚙️ Настройки: курсы, оплата, доставка, анимации</button>`;
@@ -340,17 +488,315 @@ async function renderCats(){
   <button class="btn btn-gold blk" onclick="addCat()">＋ Категория</button>`;
 }
 let bannersCache = [];
-async function renderBannersAdm(){
+// ================== ОФОРМЛЕНИЕ САЙТА ==================
+async function renderDesign(sub){
   const bs = await api('/admin/banners');
   bannersCache = bs;
-  $('content').innerHTML = `<button class="btn btn-ghost blk" onclick="TAB='more';renderTabs();render()">← Ещё</button>
-  <div class="sect-t">Баннеры главной</div>
-  ${bs.map(b=>`<div class="card"><img src="${b.image_url}" class="img-prev"><b style="display:block;margin-top:8px">${b.title_ru||''}</b>
-  <div class="muted" style="font-size:12px">${b.sub_ru||''}</div>
-  <div style="display:flex;gap:7px;margin-top:10px"><button class="btn btn-ghost btn-xs" onclick="editBannerId=${b.id};openBannerForm()">✏️</button>
-  <button class="btn btn-del btn-xs" onclick="if(confirm('Удалить баннер?'))api('/admin/banner/delete',{id:${b.id}}).then(()=>{toast('Удалён');renderBannersAdm()})">🗑</button></div></div>`).join('')}
-  <button class="btn btn-gold blk" onclick="editBannerId=null;openBannerForm()">＋ Баннер</button>`;
+  const ds = await api('/admin/products');
+  cats = ds.categories; prodsCache = ds.products;
+  const view = sub || (window._designSub || 'banners');
+  window._designSub = view;
+  $('content').innerHTML = `
+  <div class="seg">
+    <button class="${view==='banners'?'on':''}" onclick="renderDesign('banners')">🖼 Баннеры</button>
+    <button class="${view==='cats'?'on':''}" onclick="renderDesign('cats')">🗂 Категории</button>
+  </div>
+  ${view==='banners' ? renderBannersList(bs) : renderCatsEditor(ds.categories)}
+  `;
 }
+function renderBannersList(bs){
+  return `<div class="sect-t">Баннеры главной</div>
+  ${bs.length ? bs.sort((a,b)=>(a.sort||0)-(b.sort||0)).map((b,i,arr)=>`
+  <div class="card" style="${b.hidden?'opacity:.55':''}">
+    <div style="display:flex;gap:10px">
+      <img src="${b.image_url||''}" style="width:86px;height:56px;border-radius:10px;object-fit:cover;flex:none;background:var(--sand)">
+      <div style="flex:1;min-width:0">
+        <b>${b.title_ru||'Без названия'}</b>
+        <div class="muted" style="font-size:11.5px">${b.sub_ru||''}</div>
+        <div class="muted" style="font-size:11px;margin-top:2px">${b.hidden?'⏸ выключен':'▶ показывается'}${b.dfrom||b.dto?' · с '+b.dfrom+' по '+b.dto:''}</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-xs" ${i===0?'disabled style="opacity:.35"':''} onclick="bnMove(${b.id},-1)">↑</button>
+      <button class="btn btn-ghost btn-xs" ${i===arr.length-1?'disabled style="opacity:.35"':''} onclick="bnMove(${b.id},1)">↓</button>
+      <button class="btn btn-ghost btn-xs" onclick="editBannerId=${b.id};openBannerForm()">✏️ Редактировать</button>
+      <button class="btn btn-ghost btn-xs" onclick="bnDup(${b.id})">⧉ Дублировать</button>
+      <button class="btn btn-ghost btn-xs" onclick="bnToggle(${b.id},${b.hidden?'false':'true'})">${b.hidden?'👁 Включить':'⏸ Выключить'}</button>
+      <button class="btn btn-del btn-xs" onclick="bnDel(${b.id})">🗑</button>
+    </div>
+  </div>`).join('') : '<div class="empty">Баннеров нет — покупатели не увидят этот блок</div>'}
+  <button class="btn btn-gold blk" onclick="editBannerId=null;openBannerForm()">＋ Добавить баннер</button>`;
+}
+function renderCatsEditor(cs){
+  return `<div class="sect-t">Категории витрины</div>
+  ${cs.sort((a,b)=>(a.sort||0)-(b.sort||0)).map((c,i,arr)=>`
+  <div class="card row" style="${c.hidden?'opacity:.55':''}">
+    <div style="display:flex;gap:9px;align-items:center;flex:1;min-width:0">
+      <span style="width:38px;height:38px;border-radius:11px;background:var(--sand);display:flex;align-items:center;justify-content:center;flex:none">${c.icon_url?`<img src="${c.icon_url}" style="width:26px;height:26px;border-radius:7px;object-fit:cover">`:(c.icon||'🍬')}</span>
+      <div><b>${c.name_ru}</b><div class="muted" style="font-size:11px">${c.name_en||''}${c.hidden?' · скрыта':''}</div></div>
+    </div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end">
+      <button class="btn btn-ghost btn-xs" ${i===0?'disabled style="opacity:.35"':''} onclick="catMove(${c.id},-1)">↑</button>
+      <button class="btn btn-ghost btn-xs" ${i===arr.length-1?'disabled style="opacity:.35"':''} onclick="catMove(${c.id},1)">↓</button>
+      <button class="btn btn-ghost btn-xs" onclick="editCatId=${c.id};openCatForm()">✏️</button>
+      <button class="btn btn-ghost btn-xs" onclick="catToggle(${c.id},${c.hidden?'false':'true'})">${c.hidden?'👁':'🙈'}</button>
+      <button class="btn btn-del btn-xs" onclick="catDel(${c.id})">🗑</button>
+    </div>
+  </div>`).join('')}
+  <button class="btn btn-gold blk" onclick="editCatId=null;openCatForm()">＋ Добавить категорию</button>`;
+}
+function bnMove(id, dir){ guard(async ()=>{
+  const ids = bannersCache.sort((a,b)=>(a.sort||0)-(b.sort||0)).map(b=>b.id);
+  const i = ids.indexOf(id), j = i + dir;
+  if (j < 0 || j >= ids.length) return;
+  [ids[i], ids[j]] = [ids[j], ids[i]];
+  await api('/admin/banner/reorder', { ids }); toast('Порядок сохранён'); renderDesign('banners');
+}); }
+function bnDup(id){ guard(async ()=>{ await api('/admin/banner/duplicate', { id }); toast('Копия создана (выключена)'); renderDesign('banners'); }); }
+function bnToggle(id, v){ guard(async ()=>{ await api('/admin/banner', { banner: { id, hidden: v } }); toast(v?'Баннер выключен':'Баннер включён'); renderDesign('banners'); }); }
+function bnDel(id){ const b = bannersCache.find(x=>x.id===id);
+  if (!confirm('Удалить баннер «' + (b?b.title_ru:'') + '»? Его фото тоже удалится из хранилища.')) return;
+  guard(async ()=>{ await api('/admin/banner/delete', { id }); toast('Баннер удалён'); renderDesign('banners'); });
+}
+function catMove(id, dir){ guard(async ()=>{
+  const ids = cats.slice().sort((a,b)=>(a.sort||0)-(b.sort||0)).map(c=>c.id);
+  const i = ids.indexOf(id), j = i + dir;
+  if (j < 0 || j >= ids.length) return;
+  [ids[i], ids[j]] = [ids[j], ids[i]];
+  await api('/admin/category/reorder', { ids }); toast('Порядок сохранён'); renderDesign('cats');
+}); }
+function catToggle(id, v){ guard(async ()=>{ await api('/admin/category', { category: { id, hidden: v } }); toast(v?'Скрыта':'Показана'); renderDesign('cats'); }); }
+function catDel(id){ const c = cats.find(x=>x.id===id);
+  if (!confirm('Удалить категорию «' + (c?c.name_ru:'') + '»? Товары не удалятся — они уйдут в «Без категории».')) return;
+  guard(async ()=>{ await api('/admin/category/delete', { id }); toast('Категория удалена'); renderDesign('cats'); });
+}
+// ---------- редактор баннера ----------
+const EMOJI_CATS = ['🍫','🍬','🍭','🍩','🍪','🧁','🍰','🎂','🍯','🍎','🍓','🍒','🍇','🌰','🥜','🎁','🎀','✨','🏷️','🔥','💕','🎅','❄️','🌸','🌟','☕','🧊','🌰','🍮','🥮','🍬'];
+function openBannerForm(){
+  const b = editBannerId ? bannersCache.find(x=>x.id===editBannerId) : null;
+  const st = { image_url: b?b.image_url||'':'', pos: b?b.pos||'left':'left', tcol: b?b.tcol||'white':'white', dim: b&&b.dim!==undefined?b.dim:40, target: 'none', cat: 0, prod: 0, url: '' };
+  const l = b?String(b.link||''):'';
+  if (l === 'none' || l === '') { st.target = l === 'none' ? 'none' : 'catalog'; }
+  else if (l.startsWith('cat:')) { st.target = 'cat'; st.cat = Number(l.slice(4))||0; }
+  else if (l.startsWith('prod:')) { st.target = 'prod'; st.prod = Number(l.slice(5))||0; }
+  else if (/^https?:\/\//.test(l)) { st.target = 'link'; st.url = l; }
+  window._bn = st;
+  openSheet(`
+  <div class="serif" style="font-size:19px;font-weight:700">${b?'Изменить баннер':'Новый баннер'}</div>
+  <div class="field"><label>Фото баннера</label>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="btn btn-gold" style="flex:1" onclick="bnPickPhoto()">🖼 ${st.image_url?'Заменить фото':'Загрузить фото'}</button>
+      ${st.image_url?`<button class="btn btn-del" onclick="bnPhotoDel()">Удалить фото</button>`:''}
+    </div></div>
+  <div class="field"><label>Заголовок</label><input id="bnT" value="${b?escHtml(b.title_ru):''}" oninput="bnPrev()" placeholder="Подарочные наборы"></div>
+  <div class="field"><label>Подзаголовок</label><input id="bnS" value="${b?escHtml(b.sub_ru):''}" oninput="bnPrev()" placeholder="Премиальная упаковка и открытка"></div>
+  <div class="field"><label>Текст кнопки</label><input id="bnBtn" value="${b?escHtml(b.btn_ru||''):''}" oninput="bnPrev()" placeholder="Перейти в каталог"></div>
+  <div class="field"><label>Куда ведёт кнопка</label>
+    <select id="bnTarget" onchange="bnTargetChange()">
+      <option value="catalog" ${st.target==='catalog'?'selected':''}>В каталог</option>
+      <option value="cat" ${st.target==='cat'?'selected':''}>В категорию</option>
+      <option value="prod" ${st.target==='prod'?'selected':''}>В товар</option>
+      <option value="link" ${st.target==='link'?'selected':''}>Внешняя ссылка</option>
+      <option value="none" ${st.target==='none'?'selected':''}>Никуда (без кнопки)</option>
+    </select>
+    <div id="bnTargetVal" style="margin-top:8px">${bnTargetHtml(st)}</div>
+  </div>
+  <div class="field"><label>Позиция текста</label>
+    <div class="seg" id="bnPos">
+      <button class="${st.pos==='left'?'on':''}" onclick="bnSeg('pos','left')">Слева</button>
+      <button class="${st.pos==='center'?'on':''}" onclick="bnSeg('pos','center')">По центру</button>
+      <button class="${st.pos==='right'?'on':''}" onclick="bnSeg('pos','right')">Справа</button>
+    </div></div>
+  <div class="field"><label>Цвет текста</label>
+    <div class="seg" id="bnTcol">
+      <button class="${st.tcol==='white'?'on':''}" onclick="bnSeg('tcol','white')">⚪ Белый</button>
+      <button class="${st.tcol==='dark'?'on':''}" onclick="bnSeg('tcol','dark')">⚫ Тёмный</button>
+    </div></div>
+  <div class="field"><label>Затемнение фото: <b id="bnDimV">${st.dim}%</b></label>
+    <input type="range" id="bnDim" min="0" max="80" value="${st.dim}" oninput="window._bn.dim=+this.value;$('bnDimV').textContent=this.value+'%';bnPrev()"></div>
+  <div class="frow">
+    <div class="field"><label>Показывать с (необязательно)</label><input type="date" id="bnDfrom" value="${b?b.dfrom||'':''}"></div>
+    <div class="field"><label>Показывать по (необязательно)</label><input type="date" id="bnDto" value="${b?b.dto||'':''}"></div>
+  </div>
+  <div class="field"><label>Статус</label>
+    <div class="seg" id="bnHidden">
+      <button class="${b&&b.hidden?'':'on'}" onclick="bnSeg('hidden',false)">▶ Показывается</button>
+      <button class="${b&&b.hidden?'on':''}" onclick="bnSeg('hidden',true)">⏸ Выключен</button>
+    </div></div>
+  <div class="prev-phone"><div class="prev-screen" id="bnPrevBox">${bnPrevHtml()}</div>
+  <div class="muted" style="text-align:center;font-size:11px;margin-top:6px">Так баннер увидит покупатель</div></div>
+  <button class="btn btn-gold blk" onclick="saveBanner()">💾 Сохранить</button>
+  <button class="btn btn-ghost blk" onclick="bnReset()">↩️ Сбросить к стандартному</button>
+  <button class="btn btn-ghost blk" onclick="closeSheet()">Отмена</button>`);
+}
+function bnTargetHtml(st){
+  if (st.target === 'cat') return `<select id="bnCat">${cats.map(c=>`<option value="${c.id}" ${c.id===st.cat?'selected':''}>${c.name_ru}</option>`).join('')}</select>`;
+  if (st.target === 'prod') return `<select id="bnProd">${prodsCache.map(p=>`<option value="${p.id}" ${p.id===st.prod?'selected':''}>${p.name_ru}</option>`).join('')}</select>`;
+  if (st.target === 'link') return `<input id="bnUrl" value="${escHtml(st.url)}" placeholder="https://…">`;
+  return '<div class="muted" style="font-size:12px">Кнопка не показывается</div>';
+}
+function bnTargetChange(){
+  const v = $('bnTarget').value;
+  window._bn.target = v;
+  if (v==='cat') window._bn.cat = 0;
+  if (v==='prod') window._bn.prod = (prodsCache[0]||{}).id||0;
+  if (v==='link') window._bn.url = '';
+  $('bnTargetVal').innerHTML = bnTargetHtml(window._bn);
+}
+function bnSeg(k, v){ window._bn[k] = v;
+  const seg = k==='pos' ? 'bnPos' : k==='tcol' ? 'bnTcol' : 'bnHidden';
+  [...$(seg).children].forEach(btn=>btn.classList.remove('on'));
+  event.target.classList.add('on');
+  bnPrev();
+}
+function bnPickPhoto(){ S.pickTarget='bannerPhoto'; $('photoFile').click(); }
+function bnPhotoDel(){ window._bn.image_url = ''; toast('Фото удалится при сохранении'); openBannerForm(); }
+function bnReset(){
+  window._bn.pos='left'; window._bn.tcol='white'; window._bn.dim=40;
+  $('bnDim').value=40; $('bnDimV').textContent='40%';
+  [...$('bnPos').children].forEach((b,i)=>b.classList.toggle('on', i===0));
+  [...$('bnTcol').children].forEach((b,i)=>b.classList.toggle('on', i===0));
+  $('bnDfrom').value=''; $('bnDto').value='';
+  bnPrev(); toast('Сброшено к стандартному');
+}
+function bnPrevHtml(){
+  const st = window._bn || {};
+  const title = ($('bnT') ? $('bnT').value : '') || '';
+  const sub = ($('bnS') ? $('bnS').value : '') || '';
+  const btn = ($('bnBtn') ? $('bnBtn').value : '') || '';
+  const showBtn = btn && st.target !== 'none';
+  const dark = st.tcol === 'dark';
+  const dim = Math.min(80, Math.max(0, st.dim===undefined?40:st.dim)) / 100;
+  const grad = dark ? 'linear-gradient(transparent, rgba(255,252,247,' + (0.45+dim/2).toFixed(2) + '))' : 'linear-gradient(transparent, rgba(15,8,4,' + (0.35+dim).toFixed(2) + '))';
+  const align = st.pos==='center'?'text-align:center':st.pos==='right'?'text-align:right':'text-align:left';
+  const color = dark ? '#252321' : '#fff';
+  return `${st.image_url?`<img src="${st.image_url}">`:'<div style="width:100%;height:100%;background:var(--sand);display:flex;align-items:center;justify-content:center;color:#B7A98E;font-size:12px;font-weight:700">Загрузите фото</div>'}
+  <div class="prev-txt" style="background:${grad};${align}"><div class="pbt" style="color:${color}">${escHtml(title)||'Заголовок'}</div><div class="pbs" style="color:${dark?'rgba(37,35,33,.75)':'rgba(255,255,255,.9)'}">${escHtml(sub)}</div>${showBtn?`<span class="prev-btn" style="${dark?'background:#4B2B20;color:#fff':''}">${escHtml(btn)}</span>`:''}</div>`;
+}
+function bnPrev(){ const box = $('bnPrevBox'); if (box) box.innerHTML = bnPrevHtml(); }
+function saveBanner(){ guard(async ()=>{
+  const st = window._bn || {};
+  const banner = { title_ru:$('bnT').value.trim(), sub_ru:$('bnS').value.trim(), btn_ru:$('bnBtn').value.trim(),
+    image_url: st.image_url || '', pos: st.pos || 'left', tcol: st.tcol || 'white', dim: Number(st.dim) || 0,
+    dfrom: $('bnDfrom').value || '', dto: $('bnDto').value || '', hidden: !!st.hidden };
+  const target = $('bnTarget').value;
+  if (target === 'catalog') banner.link = '';
+  else if (target === 'cat') banner.link = 'cat:' + ($('bnCat') ? $('bnCat').value : 0);
+  else if (target === 'prod') banner.link = 'prod:' + ($('bnProd') ? $('bnProd').value : 0);
+  else if (target === 'link') { const u = ($('bnUrl').value||'').trim(); if (!/^https?:\/\//.test(u)) { toast('Ссылка должна начинаться с https://'); return; } banner.link = u; }
+  else banner.link = 'none';
+  if (!banner.image_url) { toast('Загрузите фото баннера'); return; }
+  if (editBannerId) banner.id = editBannerId;
+  await api('/admin/banner', { banner }); toast('Баннер сохранён — покупатели уже видят'); closeSheet(); renderDesign('banners');
+}); }
+// ---------- редактор категории ----------
+function openCatForm(){
+  const c = editCatId ? cats.find(x=>x.id===editCatId) : null;
+  window._cat = { icon: c?c.icon||'':'' , icon_url: c?c.icon_url||'':'' };
+  openSheet(`
+  <div class="serif" style="font-size:19px;font-weight:700">${c?'Изменить категорию':'Новая категория'}</div>
+  <div class="field"><label>Название (RU)</label><input id="cfRu" value="${c?escHtml(c.name_ru):''}"></div>
+  <div class="frow">
+    <div class="field"><label>Name (EN)</label><input id="cfEn" value="${c?escHtml(c.name_en||''):''}"></div>
+    <div class="field"><label>Nomi (UZ)</label><input id="cfUz" value="${c?escHtml(c.name_uz||''):''}"></div>
+  </div>
+  <div class="field"><label>Иконка на витрине</label>
+    <div style="display:flex;gap:7px;align-items:center;margin-top:8px">
+      <span id="cfIconPrev" style="width:44px;height:44px;border-radius:12px;background:var(--sand);display:flex;align-items:center;justify-content:center;font-size:26px">${window._cat.icon_url?`<img src="${window._cat.icon_url}" style="width:30px;height:30px;border-radius:8px;object-fit:cover">`:window._cat.icon||''}</span>
+      <input id="cfIconCustom" style="flex:1;font-size:22px;text-align:center" maxlength="4" placeholder="эмодзи" value="${window._cat.icon}" oninput="cfIconSet(this.value)">
+    </div>
+    <div class="em-grid">${EMOJI_CATS.map(e=>`<button class="${window._cat.icon===e?'on':''}" onclick="cfIconSet('${e}')">${e}</button>`).join('')}</div>
+    <button class="btn btn-ghost blk" style="margin-top:8px" onclick="S.pickTarget='catIcon';$('photoFile').click()">🖼 Или загрузить свою картинку</button>
+  </div>
+  <button class="btn btn-gold blk" onclick="saveCat()">💾 Сохранить</button>
+  <button class="btn btn-ghost blk" onclick="closeSheet()">Отмена</button>`);
+}
+function cfIconSet(v){ window._cat.icon = v||''; window._cat.icon_url = '';
+  $('cfIconPrev').innerHTML = v||''; $('cfIconCustom').value = v||'';
+  document.querySelectorAll('.em-grid button').forEach(b=>b.classList.toggle('on', b.textContent===v));
+}
+async function saveCat(){ guard(async ()=>{
+  const category = { name_ru: $('cfRu').value.trim(), name_en: $('cfEn').value.trim() || $('cfRu').value.trim(), name_uz: $('cfUz').value.trim(), icon: window._cat.icon||'', icon_url: window._cat.icon_url||'' };
+  if (!category.name_ru) { toast('Введите название'); return; }
+  if (editCatId) category.id = editCatId;
+  await api('/admin/category', { category }); toast('Категория сохранена'); closeSheet(); renderDesign('cats');
+}); }
+// ---------- кроппер 1:1 ----------
+let cropState = null, cropPointer = null, cropPinch = null;
+function startCrop(file, cb){
+  if (file.size > 10 * 1024 * 1024) { toast('Файл больше 10 МБ — выберите фото меньше'); return; }
+  const rd = new FileReader();
+  rd.onload = () => { const img = new Image();
+    img.onload = () => { const C = 320; const min = Math.max(C/img.width, C/img.height);
+      cropState = { img, cb, min, scale: min, ox: 0, oy: 0, C };
+      $('cropZoom').value = 0; $('cropWrap').classList.remove('hidden'); drawCrop(); };
+    img.onerror = () => toast('Не удалось открыть фото — попробуйте другое');
+    img.src = rd.result; };
+  rd.onerror = () => toast('Не удалось прочитать файл');
+  rd.readAsDataURL(file);
+}
+function drawCrop(){
+  if (!cropState) return;
+  const cv = $('cropCv'), ctx = cv.getContext('2d');
+  const { img, scale, ox, oy, C } = cropState;
+  ctx.fillStyle = '#F1EBDD'; ctx.fillRect(0, 0, C, C);
+  const w = img.width * scale, h = img.height * scale;
+  const lim = (v, d) => Math.min(0, Math.max(C - d, v));
+  ctx.drawImage(img, lim((C - w)/2 + ox, w), lim((C - h)/2 + oy, h), w, h);
+}
+function cropZoomSet(v){ if (!cropState) return;
+  const oldScale = cropState.scale;
+  cropState.scale = cropState.min * (1 + (+v) / 100 * 2.5);
+  drawCrop();
+}
+function cropPanStart(e){ if (!cropState) return; e.preventDefault();
+  if (e.touches && e.touches.length === 2) { cropPinch = { d: Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY), s: cropState.scale }; return; }
+  const p = e.touches ? e.touches[0] : e;
+  cropPointer = { x: p.clientX, y: p.clientY, ox: cropState.ox, oy: cropState.oy };
+}
+function cropPanMove(e){ if (!cropState || !cropPointer) return; e.preventDefault();
+  const p = e.touches ? e.touches[0] : e;
+  cropState.ox = cropPointer.ox + (p.clientX - cropPointer.x);
+  cropState.oy = cropPointer.oy + (p.clientY - cropPointer.y);
+  drawCrop();
+}
+function cropPanEnd(){ cropPointer = null; cropPinch = null; }
+function cropDone(){ if (!cropState) return;
+  const C = 1200;
+  const oc = document.createElement('canvas'); oc.width = oc.height = C;
+  const ctx = oc.getContext('2d');
+  const { img, scale, ox, oy, C: c0 } = cropState;
+  const k = C / c0;
+  ctx.fillStyle = '#F1EBDD'; ctx.fillRect(0, 0, C, C);
+  const w = img.width * scale, h = img.height * scale;
+  const lim = (v, d) => Math.min(0, Math.max(C - d, v));
+  ctx.drawImage(img, lim(((c0 - w)/2 + ox) * k, w*k), lim(((c0 - h)/2 + oy) * k, h*k), w * k, h * k);
+  const data = oc.toDataURL('image/jpeg', 0.85);
+  $('cropWrap').classList.add('hidden');
+  const cb = cropState.cb; cropState = null; cb(data);
+}
+function cropCancel(){ $('cropWrap').classList.add('hidden'); cropState = null; }
+// ---------- конвейер фото ----------
+async function uploadB64(dataUrl){
+  const r = await api('/admin/upload', { b64: dataUrl.split(',')[1], mime: 'image/jpeg' });
+  return r.url;
+}
+function onPickMulti(ev){
+  const files = [...ev.target.files]; ev.target.value = '';
+  processMulti(files, 0);
+}
+async function processMulti(files, i){
+  if (i >= files.length) { toast('Фото загружены'); renderPhotoGrid(); return; }
+  const left = files.length - i;
+  toast('Обрежьте фото ' + (i+1) + ' из ' + files.length + ' (ещё ' + (left-1) + ')');
+  startCrop(files[i], async (data) => {
+    try { const url = await uploadB64(data); pfImages.push(url); }
+    catch(e){ toast('Ошибка загрузки: ' + (e.message||'повторите позже')); }
+    processMulti(files, i + 1);
+  });
+}
+
+async function renderBannersAdm(){ return renderDesign('banners'); }
 function openBannerForm(){
   const b = editBannerId ? bannersCache.find(x=>x.id===editBannerId) : null;
   openSheet(`<div class="serif" style="font-size:19px;font-weight:700">${b?'Изменить баннер':'Новый баннер'}</div>
