@@ -252,19 +252,20 @@ nav.kb{transform:translateY(110%)}
 .paycard .pc-mc i{width:22px;height:22px;border-radius:50%;display:block}
 .pc-cta{display:flex;gap:8px;margin-top:12px}
 .pc-sum{text-align:center;font-weight:800;font-size:15px;margin-top:14px}
-.cryptocard{position:relative;overflow:hidden;border-radius:22px;background:radial-gradient(circle at 30% 28%,#2196F3 0%,#1565C0 42%,#0D47A1 100%);padding:18px;color:#fff;max-width:400px;margin:16px auto 0;min-height:150px;box-shadow:0 18px 42px rgba(13,71,161,.4),inset 0 1px 0 rgba(255,255,255,.18)}
+.cryptocard{position:relative;overflow:hidden;border-radius:22px;background:radial-gradient(circle at 30% 28%,#2196F3 0%,#1565C0 42%,#0D47A1 100%);padding:18px;color:#fff;max-width:400px;margin:16px auto 0;min-height:190px;padding-right:44px;box-shadow:0 18px 42px rgba(13,71,161,.4),inset 0 1px 0 rgba(255,255,255,.18)}
 .cryptocard::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 22% 78%,rgba(255,255,255,.05) 0 2px,transparent 3px),radial-gradient(circle at 68% 22%,rgba(255,255,255,.07) 0 2px,transparent 3px),radial-gradient(circle at 82% 64%,rgba(255,255,255,.05) 0 2px,transparent 3px);pointer-events:none}
 .cryptocard .cc-ring{position:absolute;width:240px;height:240px;border-radius:50%;background:repeating-radial-gradient(circle at center,rgba(255,255,255,.045) 0 1px,transparent 1px 5px);top:-40px;left:20%;opacity:.55;pointer-events:none}
-.cc-flex{display:flex;justify-content:space-between;height:100%;gap:10px;position:relative}
-.cc-left{display:flex;flex-direction:column;justify-content:flex-start;gap:8px}
-.cc-diamond{width:30px;height:30px}
-.cc-amt{font-weight:800;font-size:17px;letter-spacing:.02em}
-.cc-sub{font-size:12px;font-weight:600;opacity:.9}
-.cc-net{margin-top:auto;font-size:10px;font-weight:700;letter-spacing:.14em;opacity:.85;text-transform:uppercase}
-.cc-right{display:flex;flex-direction:column;align-items:flex-end;gap:10px;flex:none;max-width:46%}
+.cc-top{display:flex;justify-content:space-between;align-items:center;position:relative}
+.cc-bank{display:flex;align-items:center;gap:7px;font-weight:800;font-size:12.5px;letter-spacing:.08em}
+.cc-diamond{width:19px;height:19px;flex:none}
+.cc-brand{font-weight:800;font-size:12.5px;letter-spacing:.14em;opacity:.9}
+.cc-mid{display:flex;align-items:center;gap:12px;margin-top:14px;position:relative}
+.cc-num{font-weight:800;font-size:21px;letter-spacing:.04em;margin-top:12px;white-space:nowrap}
+.cc-sub{font-size:12.5px;font-weight:600;opacity:.92;margin-top:3px}
+.cc-bot{margin-top:12px;font-size:11px;font-weight:700;letter-spacing:.06em;opacity:.85}
 .cc-chip2{width:34px;height:26px;border-radius:7px;background:linear-gradient(135deg,#EDEDF2,#B9BAC2);display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:5px}
 .cc-chip2 i{background:rgba(120,124,140,.55);border-radius:3px;display:block}
-.cc-addr{writing-mode:vertical-rl;transform:rotate(180deg);font-size:9px;letter-spacing:.09em;font-weight:600;line-height:1.25;word-break:break-all;opacity:.95;max-height:128px;overflow:hidden}
+.cc-addr{position:absolute;right:12px;top:54px;bottom:12px;writing-mode:vertical-rl;transform:rotate(180deg);font-size:8.5px;letter-spacing:.07em;font-weight:600;line-height:1.3;word-break:break-all;opacity:.8;overflow:hidden;text-align:right}
 .cc-rates{text-align:center;font-size:13px;font-weight:700;margin-top:8px;color:#3D302A}
 .cc-rates span{color:#1E88C7}
 .cc-cta{display:flex;gap:8px;margin-top:12px}
@@ -429,20 +430,13 @@ function cryptoCardHtml(sumLocal, sumUsd){
   const gram = sumUsd / (cr.gram || 1.4);
   return `<div class="cryptocard">
     <div class="cc-ring"></div>
-    <div class="cc-flex">
-      <div class="cc-left">
-        <svg class="cc-diamond" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.95)" stroke-width="1.5" stroke-linejoin="round"><path d="M12 2l7 7-7 13L5 9z"/><path d="M5 9h14M12 2v20"/></svg>
-        <div class="cc-amt">USDT / GRAM</div>
-        <div class="cc-sub">${sumLocal}</div>
-        <div class="cc-net">сеть TON</div>
-      </div>
-      <div class="cc-right">
-        <div class="cc-chip2"><i></i><i></i><i></i><i></i></div>
-        <div class="cc-addr">${escHtml(addr)}</div>
-      </div>
-    </div>
+    <div class="cc-top"><span class="cc-bank"><svg class="cc-diamond" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.95)" stroke-width="1.5" stroke-linejoin="round"><path d="M12 2l7 7-7 13L5 9z"/><path d="M5 9h14M12 2v20"/></svg>TON · USDT / GRAM</span><span class="cc-brand">CRYPTO</span></div>
+    <div class="cc-mid"><div class="cc-chip2"><i></i><i></i><i></i><i></i></div><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.92)" stroke-width="1.7" stroke-linecap="round"><path d="M6 8.5a8 8 0 0 1 0 7"/><path d="M9.5 6.5a11 11 0 0 1 0 11"/><path d="M13 4.5a14 14 0 0 1 0 15"/><path d="M16.5 2.8a17.5 17.5 0 0 1 0 18.4"/></svg></div>
+    <div class="cc-num">${usdt.toFixed(2)} USDT</div>
+    <div class="cc-sub">≈ ${gram.toFixed(1)} GRAM · ${sumLocal}</div>
+    <div class="cc-bot"><span class="cc-holder">${t('paySum')}: ${sumLocal}</span></div>
+    <div class="cc-addr">${escHtml(addr)}</div>
   </div>
-  <div class="cc-rates">≈ <span>${usdt.toFixed(2)} USDT</span> · ≈ <span>${gram.toFixed(1)} GRAM</span></div>
   <div class="cc-cta">
     <button class="press" onclick="copyText(${JSON.stringify(addr)})">${t('addrCopy')}</button>
     <button class="press" onclick="closeOvl();S.view='chat';renderNav();openChatView()">${t('sentCheck')}</button>
@@ -738,7 +732,21 @@ function renderSections(){
 }
 
 // ---------- товар ----------
-function copyText(x){ navigator.clipboard && navigator.clipboard.writeText(x).then(()=>toast('Скопировано')).catch(()=>toast('Не удалось')); }
+async function copyText(x){
+  x = String(x == null ? '' : x);
+  try { if (navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(x); toast('Скопировано ✓'); return; } } catch (e) {}
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = x; ta.setAttribute('readonly','');
+    ta.style.cssText = 'position:fixed;top:-999px;left:-999px;opacity:0';
+    document.body.appendChild(ta);
+    if (ta.nodeName === 'TEXTAREA'){ ta.focus(); ta.select(); ta.setSelectionRange(0, x.length); }
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    if (ok){ toast('Скопировано ✓'); return; }
+  } catch (e) {}
+  if (tg && tg.showAlert) tg.showAlert('Скопируйте вручную:\n' + x); else toast('Не удалось скопировать');
+}
 const SHARE_BOT = 'Konfety_krft_deliciousbot';
 async function shareProduct(p){
   haptic();
