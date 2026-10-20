@@ -183,12 +183,12 @@ async function handleUpdate(env, u) {
     if (await isOwner(env, tid)) {
       if (m.text === '/start') {
         await tgApi(env, 'sendPhoto', { chat_id: tid, photo: BANNER_PHOTO, parse_mode: 'HTML',
-          caption: '🤍 <b>SAHAR</b> · премиальные сладости\nРучная работа · Доставка по Узбекистану и СНГ',
-          reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=2' } }]] } });
+          caption: '🤍 <b>SAHAR</b> · премиальные сладости\nРучная работа · Доставка по СНГ',
+          reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=3' } }]] } });
         await tgApi(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text:
           '👑 <b>SAHAR — панель владельца</b>\n\n🆔 Ваш Telegram ID: <code>' + tid + '</code>\n/orders — последние заказы\nЛюбое сообщение покупателя приходит сюда.',
-          reply_markup: { inline_keyboard: [[{ text: '🎛 Админ-панель', web_app: { url: env.WEBAPP_URL + 'admin.html?v=2' } }]] } });
-        await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=2' } } });
+          reply_markup: { inline_keyboard: [[{ text: '🎛 Админ-панель', web_app: { url: env.WEBAPP_URL + 'admin.html?v=3' } }]] } });
+        await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=3' } } });
         return;
       }
       if (m.text === '/orders') return void await sendOrders(env, tid);
@@ -207,9 +207,9 @@ async function handleUpdate(env, u) {
     // покупатель
     if (m.text === '/start') {
       await tgApi(env, 'sendPhoto', { chat_id: tid, photo: BANNER_PHOTO, parse_mode: 'HTML',
-        caption: '🤍 <b>SAHAR</b> · премиальные сладости\nРучная работа · Доставка по Узбекистану и СНГ\n\nНажмите кнопку и закажите с доставкой.',
-        reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=2' } }]] } });
-      await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=2' } } });
+        caption: '🤍 <b>SAHAR</b> · премиальные сладости\nРучная работа · Доставка по СНГ\n\nНажмите кнопку и закажите с доставкой.',
+        reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=3' } }]] } });
+      await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=3' } } });
       return;
     }
     if (m.text) {
@@ -294,6 +294,16 @@ async function handle(request, env) {
   }
   if (p === '/ping') return json({ ok: true });
 
+  // раздача загруженных фото товаров
+  const im = p.match(/^\/img\/(\d+)$/);
+  if (im) {
+    const buf = await env.SHOP.get('img:' + im[1], 'arrayBuffer');
+    if (!buf) return new Response(null, { status: 404 });
+    return new Response(buf, { headers: { 'Content-Type': 'image/jpeg',
+      'Cache-Control': 'public, max-age=31536000, immutable',
+      'Access-Control-Allow-Origin': '*' } });
+  }
+
   if (!p.startsWith('/api/')) return new Response('SAHAR API', { status: 404, headers: CORS });
 
   if (p === '/api/catalog' && request.method === 'GET') {
@@ -367,6 +377,16 @@ async function handle(request, env) {
   // ---- админ ----
   if (!(await isOwner(env, user.id))) return json({ error: 'forbidden' }, 403);
 
+  if (p === '/api/admin/upload' && request.method === 'POST') {
+    const b64 = String(body.img || '').replace(/^data:image\/\w+;base64,/, '');
+    let buf;
+    try { buf = Uint8Array.from(atob(b64), c => c.charCodeAt(0)); } catch { return json({ error: 'bad_image' }, 400); }
+    if (!buf.length || buf.length > 600000) return json({ error: 'bad_size' }, 400);
+    const id = await J.get(env.SHOP, 'next_img', 1);
+    await env.SHOP.put('img:' + id, buf);
+    await J.put(env.SHOP, 'next_img', id + 1);
+    return json({ ok: true, url: new URL(request.url).origin + '/img/' + id });
+  }
   if (p === '/api/admin/orders' && request.method === 'GET') {
     const ids = await J.get(env.SHOP, 'order_ids', []);
     const orders = [];

@@ -67,7 +67,13 @@
     </div>
     <div class="px-4 py-4 flex flex-col gap-3 pb-28">
       <div class="card p-4"><div class="text-xs font-extrabold uppercase tracking-widest text-[#a39274] mb-2">Категория</div><select id="pfCat" class="w-full font-bold text-[15px]"></select></div>
-      <div class="card p-4"><div class="text-xs font-extrabold uppercase tracking-widest text-[#a39274] mb-2">Фото (ссылка URL)</div><input id="pfImage" class="w-full font-semibold text-[13px] mb-3" placeholder="https://..."><div class="text-xs font-extrabold uppercase tracking-widest text-[#a39274] mb-2">Название (RU)</div><input id="pfNameRu" class="w-full font-bold text-[15px]"><div class="text-xs font-extrabold uppercase tracking-widest text-[#a39274] mt-3 mb-2">Название (UZ)</div><input id="pfNameUz" class="w-full font-bold text-[15px]"></div>
+      <div class="card p-4"><div class="text-xs font-extrabold uppercase tracking-widest text-[#a39274] mb-2">Фото товара</div>
+      <div class="flex items-center gap-3 mb-3">
+        <img id="pfPreview" src="https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/Chocolate_truffle_-_Delacre.jpg/960px-Chocolate_truffle_-_Delacre.jpg" class="w-20 h-20 rounded-xl object-cover border border-[#f0e9dd]">
+        <button type="button" onclick="document.getElementById('pfFile').click()" class="flex-1 h-12 rounded-xl bg-[#231a10] text-white text-[13px] font-extrabold">📷 Загрузить из галереи</button>
+        <input type="file" id="pfFile" accept="image/*" class="hidden" onchange="onPickPhoto(this)">
+      </div>
+      <div class="text-[10px] font-extrabold uppercase text-[#a39274] mb-1">или ссылка URL</div><input id="pfImage" oninput="pfPreview.src=this.value||PH" class="w-full font-semibold text-[13px]" placeholder="https://..."><div class="text-xs font-extrabold uppercase tracking-widest text-[#a39274] mb-2">Название (RU)</div><input id="pfNameRu" class="w-full font-bold text-[15px]"><div class="text-xs font-extrabold uppercase tracking-widest text-[#a39274] mt-3 mb-2">Название (UZ)</div><input id="pfNameUz" class="w-full font-bold text-[15px]"></div>
       <div class="card p-4"><div class="text-xs font-extrabold uppercase tracking-widest text-[#a39274] mb-2">Описание (RU)</div><textarea id="pfDescRu" rows="3" class="w-full font-semibold text-[14px]"></textarea><div class="text-xs font-extrabold uppercase tracking-widest text-[#a39274] mt-3 mb-2">Описание (UZ)</div><textarea id="pfDescUz" rows="3" class="w-full font-semibold text-[14px]"></textarea></div>
       <div class="grid grid-cols-3 gap-2">
         <div class="card p-3"><div class="text-[10px] font-extrabold uppercase text-[#a39274]">Цена, сум</div><input id="pfPrice" type="number" class="w-full font-extrabold text-[15px] mt-1"></div>
@@ -91,6 +97,31 @@ const API_BASE = 'https://sahar-shop.dostonravshanov1006800.workers.dev';
 function api(path, opts = {}) {
   return fetch(API_BASE + '/api' + path, { ...opts, headers: { 'Content-Type':'application/json', ...(opts.headers||{}) } })
     .then(async r => { const j = await r.json().catch(()=>({})); if (!r.ok) throw new Error(j.detail || j.error || 'error'); return j; });
+}
+
+async function onPickPhoto(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  tg.showScanQr?.(); // хаптик-фидбек если есть
+  try {
+    const bitmap = await createImageBitmap(file);
+    const max = 900;
+    const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+    document.getElementById('pfPreview').src = dataUrl;
+    document.getElementById('pfImage').value = 'загружаем...';
+    const r = await api('/admin/upload', { method:'POST', body: JSON.stringify({ initData: tg.initData, img: dataUrl }) });
+    document.getElementById('pfImage').value = r.url;
+    document.getElementById('pfPreview').src = r.url;
+    tg.HapticFeedback?.impactOccurred('light');
+  } catch (e) {
+    alert('Не удалось загрузить фото: ' + e.message);
+    input.value = '';
+  }
 }
 
 async function init() {
