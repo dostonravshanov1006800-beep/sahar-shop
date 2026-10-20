@@ -85,6 +85,7 @@ const STR = {new:'Новый',awaiting_payment:'Ожидает оплату',pai
 const STC = s => ({new:'st-new',awaiting_payment:'st-awaiting_payment',paid:'st-paid',confirmed:'st-confirmed',packing:'st-packing',shipping:'st-shipping',delivered:'st-delivered',cancelled:'st-cancelled',refunded:'st-refunded'}[s]||'st-new');
 const NEXT = { new:['confirmed','cancelled'], awaiting_payment:['paid','cancelled'], paid:['confirmed','refunded'], confirmed:['packing','cancelled'], packing:['shipping'], shipping:['delivered'], delivered:[], cancelled:['new'], refunded:[] };
 const BTNT = { confirmed:'✅ Подтвердить', cancelled:'❌ Отменить', paid:'💰 Оплачен', refunded:'↩️ Возврат', packing:'📦 Собирается', shipping:'🚚 В доставку', delivered:'🏁 Доставлен', new:'↩️ Возвратить' };
+function escHtml(x){ return String(x||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function toast(m){ const el=$('toast'); el.textContent=m; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),2400); }
 async function api(path, body){
   const initData = tg && tg.initData ? { initData: tg.initData } : {};
@@ -92,6 +93,7 @@ async function api(path, body){
   if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.error || 'HTTP ' + r.status); }
   return r.json();
 }
+const S = { pendingChatPhoto: '' };
 let TAB = 'dash', cats = [], prodsCache = [], ordersCache = [], chatTid = 0, editPid = null, editBannerId = null;
 const TABS = [['dash','📊 Дашборд'],['orders','📦 Заказы'],['products','🍯 Товары'],['clients','👥 Клиенты'],['chat','💬 Сообщения'],['more','⋯ Ещё']];
 function renderTabs(){ $('tabs').innerHTML = TABS.map(([id,n])=>`<button class="tab ${TAB===id?'on':''}" onclick="TAB='${id}';renderTabs();render()">${n}</button>`).join(''); }
@@ -164,6 +166,7 @@ async function setTracking(id, tracking){
 async function renderProducts(){
   const d = await api('/admin/products');
   prodsCache = d.products; cats = d.categories;
+  const del = d.deleted || [];
   $('content').innerHTML = `
   <button class="btn btn-gold blk" onclick="editPid=null;openProductForm()">＋ Добавить товар</button>
   ${d.products.map(p=>`
@@ -181,7 +184,10 @@ async function renderProducts(){
       <button class="btn btn-ghost btn-xs" onclick="toggleActive(${p.id},${p.is_active!==false})">${p.is_active===false?'👁 Показать':'🙈 Скрыть'}</button>
       <button class="btn btn-del btn-xs" onclick="delProduct(${p.id})">🗑 Удалить</button>
     </div>
-  </div>`).join('')}`;
+  </div>`).join('')}
+  ${del.length?`<div class="sect-t">🗑 Корзина (${del.length})</div>
+  ${del.map(p=>`<div class="card row" style="opacity:.65"><div style="flex:1"><b>${escHtml(p.name_ru)}</b><div class="muted" style="font-size:12px">удалён ${(p.deleted_at||'').slice(0,10)} · $${p.price_usd}</div></div>
+    <button class="btn btn-gold btn-xs" onclick="restoreProduct(${p.id})">↩️ Восстановить</button></div>`).join('')}`:''}`;
 }
 function openSheet(html){ $('sheetIn').innerHTML = html; $('sheet').classList.add('open'); }
 function closeSheet(){ $('sheet').classList.remove('open'); }
@@ -222,15 +228,20 @@ async function saveProduct(){
 async function dupProduct(id){ await api('/admin/product/duplicate', { id }); toast('Копия создана (скрыта)'); render(); }
 async function toggleActive(id, hide){ const p = prodsCache.find(x=>x.id===id); p.is_active = hide ? false : true; await api('/admin/product', { product: { id, is_active: p.is_active } }); toast(hide?'Скрыт':'Показан'); render(); }
 async function delProduct(id){
-  if (!confirm('Удалить товар безвозвратно?')) return;
-  await api('/admin/product/delete', { id }); toast('Товар удалён'); render();
+  if (!confirm('Убрать товар из витрины? Его можно восстановить из корзины.')) return;
+  await api('/admin/product/delete', { id }); toast('Товар в корзине — восстановление внизу списка'); render();
+}
+async function restoreProduct(id){
+  await api('/admin/product/restore', { id }); toast('Товар восстановлен'); render();
 }
 async function onPickPhoto(ev){
   const f = ev.target.files[0]; if (!f) return;
   try {
     const b64 = await new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>{ const c=document.createElement('canvas'); const sc=Math.min(1,900/Math.max(img.width,img.height)); c.width=img.width*sc;c.height=img.height*sc; c.getContext('2d').drawImage(img,0,0,c.width,c.height); res(c.toDataURL('image/jpeg',.85)); }; img.onerror=rej; img.src=URL.createObjectURL(f); });
     const r = await api('/admin/upload', { b64: b64.split(',')[1], mime:'image/jpeg' });
-    $('pfImage').value = r.url; $('pfPreview').src = r.url; $('pfPreview').classList.remove('hidden'); toast('Фото загружено');
+    if (TAB==='chat' && chatTid && !$('pfImage')) { S.pendingChatPhoto = r.url; toast('Фото готово — нажмите ➤'); }
+    else if ($('bnImg')) { $('bnImg').value = r.url; $('pfPreview').src = r.url; $('pfPreview').classList.remove('hidden'); toast('Фото загружено'); }
+    else { $('pfImage').value = r.url; $('pfPreview').src = r.url; $('pfPreview').classList.remove('hidden'); toast('Фото загружено'); }
   } catch(e){ toast('Не удалось: ' + e.message); }
   ev.target.value='';
 }
@@ -258,14 +269,17 @@ async function renderThread(){
   const msgs = await api('/admin/chat', { tid: chatTid });
   $('content').innerHTML = `<button class="btn btn-ghost blk" onclick="TAB='chat';renderTabs();render()">← Все диалоги</button>
   <div id="thread" style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
-  ${msgs.map(m=>`<div style="max-width:85%;padding:9px 13px;border-radius:15px;align-self:${m.from_admin?'flex-end':'flex-start'};background:${m.from_admin?'var(--text)':'var(--surface)'};color:${m.from_admin?'var(--bg)':'var(--text)'}">${m.text}${m.photo_url?`<img src="${m.photo_url}" style="max-width:160px;border-radius:9px;margin-top:5px">`:''}<div style="font-size:9.5px;opacity:.6;margin-top:3px">${(m.at||'').slice(11,16)}</div></div>`).join('') || '<div class="empty">Пусто</div>'}</div>
+  ${msgs.map(m=>`<div style="max-width:85%;padding:9px 13px;border-radius:15px;align-self:${m.from_admin?'flex-end':'flex-start'};background:${m.from_admin?'var(--text)':'var(--surface)'};color:${m.from_admin?'var(--bg)':'var(--text)'}">${escHtml(m.text)}${m.photo_url?`<img src="${escHtml(m.photo_url)}" style="max-width:160px;border-radius:9px;margin-top:5px">`:''}<div style="font-size:9.5px;opacity:.6;margin-top:3px">${(m.at||'').slice(11,16)}</div></div>`).join('') || '<div class="empty">Пусто</div>'}</div>
   <div class="frow" style="margin-top:12px"><div class="field" style="margin:0"><input id="replyIn" placeholder="Ответ…" onkeydown="if(event.key==='Enter')sendReply()"></div>
+  <button class="btn btn-ghost" style="flex:none" onclick="$('photoFile').click()">🖼</button>
   <button class="btn btn-gold" onclick="sendReply()">➤</button></div>`;
   window.scrollTo(0, document.body.scrollHeight);
 }
 async function sendReply(){
-  const text = $('replyIn').value.trim(); if (!text) return;
-  await api('/admin/chat/send', { tid: chatTid, text }); renderThread();
+  const text = $('replyIn').value.trim();
+  if (!text && !S.pendingChatPhoto) return;
+  await api('/admin/chat/send', { tid: chatTid, text: text || '📷', photo_url: S.pendingChatPhoto || '' });
+  $('replyIn').value = ''; S.pendingChatPhoto = ''; renderThread();
 }
 // ---------- Ещё ----------
 async function renderMore(){

@@ -47,6 +47,18 @@ const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(d
 });
 const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+// ---------- Rate limit (KV, TTL 65с) ----------
+async function rateOk(env, kind, tid, max = 10) {
+  const minute = Math.floor(Date.now() / 60000);
+  const key = 'rl:' + kind + ':' + tid + ':' + minute;
+  const v = await env.SHOP.get(key);
+  const n = v ? Number(v) : 0;
+  if (n >= max) return false;
+  await env.SHOP.put(key, String(n + 1), { expirationTtl: 65 });
+  return true;
+}
+const clamp = (s2, n) => String(s2 || '').slice(0, n);
+
 // ---------- Настройки по умолчанию (создаются при первом запуске, редактируются в админке) ----------
 const DEFAULT_SETTINGS = {
   shop_open: true,
@@ -177,7 +189,9 @@ async function handle(request, env) {
     // ---- публичные ----
     if (p === '/api/settings' && request.method === 'GET') {
       const s = await getSettings(env);
-      return json({ rates: s.rates, rounding: s.rounding, countries: s.countries, payments: (s.payments || []).filter(x => x.active !== false), shop_open: s.shop_open !== false, anim: s.anim || 'silk', haptic: s.haptic !== false, v: 6 });
+      const cCode = url.searchParams.get('country') || '';
+      const pays = (s.payments || []).filter(x => x.active !== false).map(x => cCode && x.countries.includes(cCode) ? x : { ...x, instr_ru: '', instr_en: '' });
+      return json({ rates: s.rates, rounding: s.rounding, countries: s.countries, payments: pays, shop_open: s.shop_open !== false, anim: s.anim || 'silk', haptic: s.haptic !== false, v: 6 });
     }
     if (p === '/api/verify' && request.method === 'POST') {
       if (!user) return json({ ok: false, error: 'invalid_init' }, 403);
@@ -188,17 +202,19 @@ async function handle(request, env) {
       const categories = [];
       for (const id of catIds) { const c = await J.get(env, 'cat:' + id); if (c && !c.hidden) categories.push(c); }
       const products = [];
-      for (const id of await J.get(env, 'prod_ids', [])) { const pr = await J.get(env, 'prod:' + id); if (pr && pr.is_active !== false) products.push(pr); }
+      for (const id of await J.get(env, 'prod_ids', [])) { const pr = await J.get(env, 'prod:' + id); if (pr && pr.is_active !== false && !pr.is_deleted) products.push(pr); }
       const banners = [];
       for (const b of await J.get(env, 'banner_ids', [])) { const bn = await J.get(env, 'banner:' + b); if (bn) banners.push(bn); }
       return json({ categories, products, banners });
     }
     if (p === '/api/order' && request.method === 'POST') {
       if (!user) return json({ ok: false, error: 'forbidden' }, 403);
+      if (!(await rateOk(env, 'ord', user.id, 6))) return json({ ok: false, error: 'rate_limited' }, 429);
       const s = await getSettings(env);
       if (s.shop_open === false) return json({ ok: false, error: 'shop_closed' }, 403);
-      const { items, name, phone, comment, country, city, address, delivery, payment_method, promo, gift, idem_key } = body;
-      if (!Array.isArray(items) || !items.length || !phone || !country || !city || !address) return json({ ok: false, error: 'bad_request' }, 400);
+      const { items } = body;
+      const name = clamp(body.name, 100), phone = clamp(body.phone, 30).replace(/[^0-9+()-\s]/g, ''), comment = clamp(body.comment, 500), country = clamp(body.country, 2).toUpperCase(), city = clamp(body.city, 60), address = clamp(body.address, 200), delivery = clamp(body.delivery, 10), payment_method = clamp(body.payment_method, 20), promo = clamp(body.promo, 30), idem_key = clamp(body.idem_key, 64), gift = body.gift || {};
+      if (!Array.isArray(items) || !items.length || items.length > 50 || !phone || !country || !city || !address) return json({ ok: false, error: 'bad_request' }, 400);
       // идемпотентность: повторное нажатие не создаёт дубль
       if (idem_key) {
         const existing = await J.get(env, 'idem:' + idem_key);
@@ -210,8 +226,8 @@ async function handle(request, env) {
       for (const it of items) {
         if (!prodIds.includes(it.id)) continue;
         const prod = await J.get(env, 'prod:' + it.id);
-        if (!prod || prod.is_active === false) continue;
-        orderItems.push({ id: prod.id, name_ru: prod.name_ru, qty: Math.max(1, it.qty | 0), price_usd: prod.price_usd });
+        if (!prod || prod.is_active === false || prod.is_deleted) continue;
+        orderItems.push({ id: prod.id, name_ru: prod.name_ru, qty: Math.max(1, Math.min(99, it.qty | 0)), price_usd: prod.price_usd });
         total_usd += prod.price_usd * Math.max(1, it.qty | 0);
       }
       if (!orderItems.length) return json({ ok: false, error: 'empty' }, 400);
@@ -252,7 +268,7 @@ async function handle(request, env) {
       await J.put(env, 'order:' + id, order);
       const ids = await J.get(env, 'order_ids', []); ids.push(id); await J.put(env, 'order_ids', ids.slice(-500));
       await J.put(env, 'next_order', id + 1);
-      if (idem_key) { await J.put(env, 'idem:' + idem_key, id); }
+      if (idem_key) { await env.SHOP.put('idem:' + idem_key, String(id), { expirationTtl: 86400 }); }
       // клиентская база
       const clIds = await J.get(env, 'client_ids', []);
       if (!clIds.includes(user.id)) { clIds.push(user.id); await J.put(env, 'client_ids', clIds); }
@@ -291,8 +307,11 @@ async function handle(request, env) {
     }
     if (p === '/api/support' && request.method === 'POST') {
       if (!user) return json({ ok: false, error: 'forbidden' }, 403);
-      const { text, photo_url } = body;
-      if (!text && !photo_url) return json({ ok: false, error: 'empty' }, 400);
+      if (!(await rateOk(env, 'sup', user.id, 10))) return json({ ok: false, error: 'rate_limited' }, 429);
+      const text = clamp(body.text, 2000);
+      const photo_url = clamp(body.photo_url, 300);
+      if ((!text || !text.trim()) && !photo_url) return json({ ok: false, error: 'empty' }, 400);
+      if (photo_url && !photo_url.startsWith(url.origin + '/img/')) return json({ ok: false, error: 'bad_photo' }, 400);
       const msgs = await J.get(env, 'msgs:' + user.id, []);
       const msg = { from_admin: false, text: (text || '').slice(0, 2000), photo_url: photo_url || '', at: new Date().toISOString(), read: false };
       msgs.push(msg); await J.put(env, 'msgs:' + user.id, msgs.slice(-200));
@@ -305,6 +324,7 @@ async function handle(request, env) {
     }
     if (p === '/api/upload' && request.method === 'POST') {
       if (!user) return json({ ok: false, error: 'forbidden' }, 403);
+      if (!(await rateOk(env, 'up', user.id, 10))) return json({ ok: false, error: 'rate_limited' }, 429);
       const { b64, mime } = body;
       if (!b64) return json({ ok: false, error: 'empty' }, 400);
       if (b64.length > 600 * 1024 * 1.37) return json({ ok: false, error: 'too_large' }, 400);
@@ -359,12 +379,12 @@ async function handle(request, env) {
       }
       if (p === '/api/admin/products') {
         const ids = await J.get(env, 'prod_ids', []);
-        const out = [];
-        for (const id of ids) { const pr = await J.get(env, 'prod:' + id); if (pr) out.push(pr); }
+        const out = [], deleted = [];
+        for (const id of ids) { const pr = await J.get(env, 'prod:' + id); if (!pr) continue; (pr.is_deleted ? deleted : out).push(pr); }
         const catIds = await J.get(env, 'cat_ids', []);
         const cats = [];
         for (const cid of catIds) { const c = await J.get(env, 'cat:' + cid); if (c) cats.push(c); }
-        return json({ products: out, categories: cats });
+        return json({ products: out, categories: cats, deleted });
       }
       if (p === '/api/admin/product' && request.method === 'POST') {
         const b = body.product || {};
@@ -383,8 +403,18 @@ async function handle(request, env) {
       }
       if (p === '/api/admin/product/delete' && request.method === 'POST') {
         const id = body.id;
-        await J.del(env, 'prod:' + id);
-        const ids = await J.get(env, 'prod_ids', []); await J.put(env, 'prod_ids', ids.filter(x => x !== id));
+        const pr = await J.get(env, 'prod:' + id);
+        if (!pr) return json({ ok: false, error: 'not_found' }, 404);
+        pr.is_deleted = true; pr.deleted_at = new Date().toISOString();
+        await J.put(env, 'prod:' + id, pr);
+        return json({ ok: true });
+      }
+      if (p === '/api/admin/product/restore' && request.method === 'POST') {
+        const id = body.id;
+        const pr = await J.get(env, 'prod:' + id);
+        if (!pr) return json({ ok: false, error: 'not_found' }, 404);
+        pr.is_deleted = false; delete pr.deleted_at;
+        await J.put(env, 'prod:' + id, pr);
         return json({ ok: true });
       }
       if (p === '/api/admin/product/duplicate' && request.method === 'POST') {
@@ -482,12 +512,16 @@ async function handle(request, env) {
         return json(msgs);
       }
       if (p === '/api/admin/chat/send' && request.method === 'POST') {
-        const { tid, text } = body;
-        if (!tid || !text) return json({ ok: false, error: 'bad_request' }, 400);
+        const tid = body.tid, text = clamp(body.text, 2000), photo_url = clamp(body.photo_url, 300);
+        if (!tid || (!text && !photo_url)) return json({ ok: false, error: 'bad_request' }, 400);
+        if (photo_url && !photo_url.startsWith(url.origin + '/img/')) return json({ ok: false, error: 'bad_photo' }, 400);
         const msgs = await J.get(env, 'msgs:' + tid, []);
-        msgs.push({ from_admin: true, text: String(text).slice(0, 2000), at: new Date().toISOString(), read: true });
+        msgs.push({ from_admin: true, text: text || '', photo_url: photo_url || '', at: new Date().toISOString(), read: true });
         await J.put(env, 'msgs:' + tid, msgs.slice(-200));
-        try { await tgApi(env, 'sendMessage', { chat_id: Number(tid), parse_mode: 'HTML', text: '🤍 <b>SAHAR</b>\n' + esc(text) }); } catch (e) {}
+        try {
+          if (photo_url) await tgApi(env, 'sendPhoto', { chat_id: Number(tid), photo: photo_url, caption: '🤍 SAHAR' + (text ? '\n' + text : '') });
+          else await tgApi(env, 'sendMessage', { chat_id: Number(tid), parse_mode: 'HTML', text: '🤍 <b>SAHAR</b>\n' + esc(text) });
+        } catch (e) {}
         return json({ ok: true });
       }
       if (p === '/api/admin/broadcast' && request.method === 'POST') {
