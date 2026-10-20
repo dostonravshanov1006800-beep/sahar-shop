@@ -30,8 +30,9 @@
 </div>
 
 <div id="noAccess" class="hidden px-6 py-24 text-center">
-  <div class="text-xl font-extrabold">Нет доступа</div>
-  <div class="text-sm font-semibold text-[#a39274] mt-2">Панель доступна только владельцу и его администраторам.</div>
+  <div class="text-xl font-extrabold" id="noAccessTitle">Нет доступа</div>
+  <div class="text-sm font-semibold text-[#a39274] mt-2" id="noAccessWhy">Панель доступна только владельцу и его администраторам.</div>
+  <div class="text-sm font-extrabold gold mt-3" id="noAccessId"></div>
 </div>
 
 <div id="panel" class="hidden">
@@ -93,11 +94,24 @@ function api(path, opts = {}) {
 }
 
 async function init() {
+  let serverDown = false, j = null;
   try {
-    const j = await api('/verify', { method:'POST', body: JSON.stringify({ initData: tg.initData || '' }) });
-    if (!j.is_admin) { document.getElementById('noAccess').classList.remove('hidden'); return; }
+    j = await api('/verify', { method:'POST', body: JSON.stringify({ initData: tg.initData || '' }) });
     if (j.user && j.user.telegram_id) document.getElementById('adminIdBadge').textContent = '👑 ' + (j.user.first_name || 'Владелец') + ' · Telegram ID: ' + j.user.telegram_id;
-  } catch (e) { document.getElementById('noAccess').classList.remove('hidden'); return; }
+  } catch (e) { serverDown = true; }
+  const raw = (window.Telegram && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user) || null;
+  if (serverDown) {
+    document.getElementById('noAccess').classList.remove('hidden');
+    document.getElementById('noAccessTitle').textContent = '⚙️ Панель готова';
+    if (raw) {
+      document.getElementById('noAccessId').textContent = '🆔 Ваш Telegram ID: ' + raw.id;
+      document.getElementById('noAccessWhy').textContent = 'Сервер ещё не подключён. После подключения панель сверит ваш ID со списком владельцев и откроется автоматически.';
+    } else {
+      document.getElementById('noAccessWhy').textContent = 'Откройте панель через Telegram — сервер проверит ваш ID.';
+    }
+    return;
+  }
+  if (!j || !j.is_admin) { document.getElementById('noAccess').classList.remove('hidden'); return; }
   document.getElementById('panel').classList.remove('hidden');
   cats = (await api('/catalog')).categories;
   await refresh();

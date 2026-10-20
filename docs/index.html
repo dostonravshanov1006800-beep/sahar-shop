@@ -26,6 +26,9 @@
   .banner-track::-webkit-scrollbar{ display:none; }
   .banner-slide{ scroll-snap-align:start; flex:0 0 100%; }
   .fade-in{ animation:fadein .3s ease; } @keyframes fadein{ from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none} }
+  input:focus, textarea:focus { outline: none; }
+  #searchWrap .card:focus-within { box-shadow: 0 0 0 2px rgba(212,175,55,.30), 0 4px 16px rgba(212,175,55,.14); border-color: #e5d3a1; }
+  .screen-chat-input:focus-within { box-shadow: 0 0 0 2px rgba(212,175,55,.30); }
 </style>
 </head>
 <body class="pb-24">
@@ -90,7 +93,7 @@
   <div class="display text-3xl font-extrabold mb-2" id="chatTitle">Сообщения</div>
   <div class="text-xs font-semibold text-[#a39274] mb-4" id="chatSub"></div>
   <div id="chatBox" class="flex flex-col gap-2 pb-4"></div>
-  <div class="card flex items-center gap-2 px-4 h-14 sticky bottom-20 z-10 bg-white">
+  <div class="card screen-chat-input flex items-center gap-2 px-4 h-14 sticky bottom-20 z-10 bg-white">
     <input id="chatInput" class="w-full bg-transparent text-[15px] font-semibold" onkeydown="if(event.key==='Enter')sendChat()">
     <button onclick="sendChat()" class="btn-gold w-9 h-9 rounded-xl flex items-center justify-center shrink-0">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
@@ -119,7 +122,7 @@
     <span class="font-extrabold" id="supportBtn"></span>
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b08d3f" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg>
   </button>
-  <div class="text-center text-[10px] font-bold tracking-[0.25em] uppercase text-[#b9ab8f] mt-8">SAHAR · Premium Sweets · Tashkent</div>
+  <div class="text-center text-[10px] font-bold tracking-[0.25em] uppercase text-[#b9ab8f] mt-8">SAHAR · Premium Sweets · Uzbekistan & CIS</div>
 </div>
 
 <!-- BOTTOM NAV -->
@@ -177,7 +180,7 @@ const BANNERS = [
   { img: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/34/020260501_Chocolate-covered_strawberries.jpg/960px-020260501_Chocolate-covered_strawberries.jpg',
     kicker_ru: '−20% на этой неделе', title_ru: 'Клубника в белом<br>шоколаде', kicker_uz: 'Bu hafta −20%', title_uz: 'Oq shokoladli<br>qulupnay', cat: 1, badge: 'SALE −20%' },
   { img: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/28/Chocolate_truffles_-_prep1.jpg/960px-Chocolate_truffles_-_prep1.jpg',
-    kicker_ru: 'Ручная работа · Ташкент', title_ru: 'Подарочные наборы<br>для дорогих людей', kicker_uz: 'Qo\'lda · Toshkent', title_uz: 'Sevgan insonga<br>sovg\'a to\'plamlari', cat: 4 },
+    kicker_ru: 'Ручная работа · доставка по СНГ', title_ru: 'Подарочные наборы<br>для дорогих людей', kicker_uz: 'Qo\'lda yasalgan · MDH bo\'ylab', title_uz: 'Sevgan insonga<br>sovg\'a to\'plamlari', cat: 4 },
 ];
 
 const I18N = {
@@ -196,6 +199,8 @@ const I18N = {
     statusNew:'Новый', statusAccepted:'Принят', statusDelivering:'В доставке',
     statusDone:'Завершён', statusCancelled:'Отменён',
     tgOnly:'Откройте приложение через Telegram, чтобы заказывать',
+    serverWait:'Сервер ещё не подключён — заработает автоматически после подключения (шаг Cloudflare)',
+    profileNote:'полный доступ после подключения сервера',
     profileDemo:'Гость · откройте через Telegram' },
   uz: { tagline:'Premium shirinliklar', search:'Katalogdan qidirish', hitsTitle:'Eng saralangan',
     catalogTitle:'Katalog', favTitle:'Sevimlilar', chatTitle:'Xabarlar',
@@ -212,6 +217,8 @@ const I18N = {
     statusNew:'Yangi', statusAccepted:'Qabul qilindi', statusDelivering:'Yetkazilmoqda',
     statusDone:'Bajarildi', statusCancelled:'Bekor qilindi',
     tgOnly:'Buyurtma berish uchun ilovani Telegram orqali oching',
+    serverWait:'Server hali ulanmagan — ulangandan keyin avtomatik ishlaydi',
+    profileNote:"server ulangandan keyin to'liq kirish",
     profileDemo:'Mehmon · Telegram orqali oching' }
 };
 const t = k => (I18N[LANG] && I18N[LANG][k]) || I18N.ru[k] || k;
@@ -241,8 +248,11 @@ function toast(msg) {
 function haptic(){ try{ tg.HapticFeedback.impactOccurred('light'); }catch(e){} }
 
 // ---------- INIT ----------
+var TG_RAW = null;
+function demoMsg() { return (DEMO && TG_RAW) ? t('serverWait') : t('tgOnly'); }
 async function init() {
   LANG = LS.get('lang', LANG);
+  try { TG_RAW = (tg.initDataUnsafe && tg.initDataUnsafe.user) || null; } catch (e) { TG_RAW = null; }
   if (!tg.initData) { DEMO = true; }
   else {
     try {
@@ -273,9 +283,10 @@ function applyLang() {
   document.getElementById('supportBtn').textContent = t('support');
   document.getElementById('chatSub').textContent = t('chatSub');
   document.getElementById('favEmpty').textContent = t('favEmpty');
-  const u = (USER && USER.first_name) || (LANG==='uz' ? 'Mehmon' : 'Гость');
+  const u = (USER && USER.first_name) || (TG_RAW && TG_RAW.first_name) || (LANG==='uz' ? 'Mehmon' : 'Гость');
   document.getElementById('pName').textContent = u;
-  document.getElementById('pId').textContent = USER ? ('Telegram ID: ' + USER.telegram_id) : t('profileDemo');
+  document.getElementById('pId').textContent = USER ? ('Telegram ID: ' + USER.telegram_id)
+    : (TG_RAW ? ('Telegram ID: ' + TG_RAW.id + ' · ' + t('profileNote')) : t('profileDemo'));
   document.getElementById('avatar').textContent = (u[0] || 'S').toUpperCase();
   renderBanner(); renderChips(); renderProducts();
 }
@@ -511,7 +522,7 @@ async function submitOrder() {
   const phone = document.getElementById('ckPhone').value.trim();
   if (!addr || !phone) { toast(t('address') + ' · ' + t('phone')); return; }
   const pay = document.querySelector('input[name=pay]:checked').value;
-  if (DEMO) { toast(t('tgOnly')); return; }
+  if (DEMO) { toast(demoMsg()); return; }
   try {
     await api('/order', { method:'POST', body: JSON.stringify({
       initData: tg.initData,
@@ -532,7 +543,7 @@ async function submitOrder() {
 // ---------- ORDERS ----------
 const statusLabel = s => t('status' + s[0].toUpperCase() + s.slice(1));
 async function openOrders() {
-  if (DEMO) { toast(t('tgOnly')); return; }
+  if (DEMO) { toast(demoMsg()); return; }
   showOverlay(t('myOrders'));
   const orders = await api('/my/orders?initData=' + encodeURIComponent(tg.initData));
   const body = document.getElementById('overlayBody');
@@ -554,14 +565,14 @@ async function openOrders() {
 
 // ---------- CHAT ----------
 async function loadChat() {
-  if (DEMO) { document.getElementById('chatBox').innerHTML = `<div class="text-center text-sm font-semibold text-[#a39274] py-10">${t('tgOnly')}</div>`; return; }
+  if (DEMO) { document.getElementById('chatBox').innerHTML = `<div class="text-center text-sm font-semibold text-[#a39274] py-10">${demoMsg()}</div>`; return; }
   const msgs = await api('/support?initData=' + encodeURIComponent(tg.initData));
   document.getElementById('chatBox').innerHTML = msgs.map(m => `
     <div class="max-w-[80%] ${m.from_admin ? 'self-end bg-[#231a10] text-white' : 'self-start card'} px-4 py-2.5 rounded-2xl text-[14px] font-semibold fade-in">${m.text.replace(/</g,'&lt;')}</div>`).join('') ||
     `<div class="text-center text-sm font-semibold text-[#a39274] py-10">${t('chatSub')}</div>`;
 }
 async function sendChat() {
-  if (DEMO) { toast(t('tgOnly')); return; }
+  if (DEMO) { toast(demoMsg()); return; }
   const el = document.getElementById('chatInput');
   const text = el.value.trim();
   if (!text) return;
