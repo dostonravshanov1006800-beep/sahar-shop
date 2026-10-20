@@ -95,7 +95,11 @@ function fmtMoney(usd, currency, rates, rounding, markup = 0) {
 
 // ---------- Владельцы ----------
 async function ownerIds(env) {
-  return String(env.OWNER_IDS || '').split(',').map(x => x.trim()).filter(Boolean).map(Number);
+  const raw = String(env.OWNER_IDS || '').trim();
+  let ids;
+  if (raw.startsWith('[')) { try { ids = JSON.parse(raw); } catch (e) { ids = []; } }
+  else ids = raw.split(',');
+  return ids.map(x => Number(String(x).trim())).filter(x => x > 0);
 }
 async function isOwner(env, tid) {
   return (await ownerIds(env)).includes(Number(tid));
