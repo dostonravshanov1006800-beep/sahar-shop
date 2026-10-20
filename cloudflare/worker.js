@@ -141,6 +141,8 @@ async function tgApi(env, method, body) {
 }
 const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const money = n => (n || 0).toLocaleString('ru-RU').replace(/\u00A0/g, ' ') + ' сум';
+const RUB_RATE = 150; // сум за 1 ₽ (ориентировочно; покупателям из СНГ)
+const rub = n => '≈' + Math.round((n || 0) / RUB_RATE).toLocaleString('ru-RU').replace(/\u00A0/g, ' ') + ' ₽';
 const STATUS_RU = { new: 'Новый', accepted: 'Принят', delivering: 'В доставке', done: 'Завершён', cancelled: 'Отменён' };
 
 async function ownerIds(env) {
@@ -170,7 +172,7 @@ async function orderText(o) {
   const items = o.items.map(i => '• ' + esc(i.name_ru) + ' ×' + i.qty).join('\n');
   const pay = { cash: 'Наличные', card: 'Карта', click: 'Click', payme: 'Payme' }[o.payment_method] || o.payment_method;
   return '🍬 <b>Новый заказ #' + o.id + '</b>\n' + items + '\n\n' +
-    '💰 <b>' + money(o.total) + '</b> · ' + pay + '\n📍 ' + esc(o.address) + '\n📞 ' + esc(o.phone) +
+    '💰 <b>' + money(o.total) + '</b> (' + rub(o.total) + ') · ' + pay + '\n📍 ' + esc(o.address) + '\n📞 ' + esc(o.phone) +
     (o.comment ? '\n💬 ' + esc(o.comment) : '') + '\n👤 ' + esc(o.client.first_name || '') + ' · ' + o.client.telegram_id;
 }
 
@@ -184,10 +186,10 @@ async function handleUpdate(env, u) {
         await tgApi(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text:
           '👑 <b>SAHAR — панель владельца</b>\n\n🆔 Ваш Telegram ID: <code>' + tid + '</code>\n/orders — последние заказы\nЛюбое сообщение покупателя приходит сюда.',
           reply_markup: { inline_keyboard: [
-            [{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=4' } }],
-            [{ text: '🎛 Админ-панель', web_app: { url: env.WEBAPP_URL + 'admin.html?v=4' } }]
+            [{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=5' } }],
+            [{ text: '🎛 Админ-панель', web_app: { url: env.WEBAPP_URL + 'admin.html?v=5' } }]
           ] } });
-        await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=4' } } });
+        await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=5' } } });
         return;
       }
       if (m.text === '/orders') return void await sendOrders(env, tid);
@@ -207,8 +209,8 @@ async function handleUpdate(env, u) {
     if (m.text === '/start') {
       await tgApi(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML',
         text: '🤍 <b>SAHAR</b> · премиальные сладости\nРучная работа · Доставка по СНГ\n\nНажмите кнопку и закажите с доставкой.',
-        reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=4' } }]] } });
-      await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=4' } } });
+        reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=5' } }]] } });
+      await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=5' } } });
       return;
     }
     if (m.text) {
@@ -349,6 +351,11 @@ async function handle(request, env) {
       if (prod) { prod.stock = Math.max(0, (prod.stock || 0) - it.qty); await J.put(env.SHOP, 'prod:' + it.id, prod); }
     }
     await notifyOwners(env, await orderText(order), await orderKb(id, 'new'));
+    try { await tgApi(env, 'sendMessage', { chat_id: user.id, parse_mode: 'HTML',
+      text: '🍬 <b>SAHAR</b> — заказ <b>#' + id + '</b> принят!\n\n' + order.items.map(i => '• ' + esc(i.name_ru) + ' ×' + i.qty).join('\n') +
+        '\n\n💰 <b>' + money(total) + '</b> (' + rub(total) + ')\n📍 ' + esc(address) +
+        '\n\n⏳ Мы свяжемся с вами для подтверждения. Статус заказа — в разделе «Мои заказы» в магазине.' });
+    } catch (e) { /* подтверждение не критично */ }
     return json({ order_id: id, total });
   }
 

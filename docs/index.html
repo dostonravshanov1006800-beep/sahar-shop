@@ -225,6 +225,8 @@ const I18N = {
 };
 const t = k => (I18N[LANG] && I18N[LANG][k]) || I18N.ru[k] || k;
 const money = n => n.toLocaleString('ru-RU').replace(/\u00A0/g,' ') + ' сум';
+const RUB_RATE = 150; // сум за 1 ₽ (ориентировочно; покупателям из СНГ)
+const rub = n => '≈' + Math.round(n / RUB_RATE).toLocaleString('ru-RU').replace(/\u00A0/g,' ') + ' ₽';
 const pname = p => LANG === 'uz' ? (p.name_uz || p.name_ru) : p.name_ru;
 const pdesc = p => LANG === 'uz' ? (p.desc_uz || p.desc_ru) : p.desc_ru;
 const PH = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/Chocolate_truffle_-_Delacre.jpg/960px-Chocolate_truffle_-_Delacre.jpg';
@@ -290,7 +292,7 @@ function applyLang() {
   document.getElementById('pId').textContent = USER ? ('Telegram ID: ' + USER.telegram_id)
     : (TG_RAW ? ('Telegram ID: ' + TG_RAW.id + ' · ' + t('profileNote')) : t('profileDemo'));
   document.getElementById('avatar').textContent = (u[0] || 'S').toUpperCase();
-  renderBanner(); renderChips(); renderProducts();
+  renderBanner(); renderChips(); renderProducts(); renderFav();
 }
 async function toggleLang() {
   LANG = LANG === 'ru' ? 'uz' : 'ru';
@@ -375,7 +377,7 @@ function productCard(p, wide) {
     <div class="mt-2 text-[14px] font-extrabold leading-tight px-0.5">${pname(p)}</div>
     <div class="flex items-end justify-between mt-1.5 px-0.5 pb-0.5">
       <div>
-        <div class="text-[15px] font-extrabold gold">${money(p.price)}</div>
+        <div class="text-[15px] font-extrabold gold">${money(p.price)} <span class="text-[11px] font-bold text-[#b0a184]">${rub(p.price)}</span></div>
         ${disc ? `<div class="text-[11px] font-bold text-[#b0a184] line-through">${money(p.old_price)}</div>` : ''}
       </div>
       <button onclick="event.stopPropagation();addToCart(${p.id})" class="btn-gold text-[12px] px-3 py-1.5 rounded-full">+</button>
@@ -407,9 +409,10 @@ async function renderFav() {
 // ---------- PRODUCT SHEET ----------
 function openProduct(pid) {
   haptic();
-  const p = products.find(x => x.id === pid);
+  const p = allProducts.find(x => x.id === pid);
   if (!p) return;
   currentProduct = p;
+  sheetQty = 1;
   const liked = favSet.has(p.id);
   const disc = p.old_price > p.price ? Math.round((1 - p.price/p.old_price)*100) : 0;
   document.getElementById('sheetBody').innerHTML = `
@@ -425,7 +428,7 @@ function openProduct(pid) {
       <div class="text-sm font-semibold text-[#6d5c3f] mt-2 leading-relaxed">${pdesc(p)}</div>
       <div class="flex items-end justify-between mt-5">
         <div>
-          <div class="text-2xl font-extrabold gold">${money(p.price)}</div>
+          <div class="text-2xl font-extrabold gold">${money(p.price)} <span class="text-sm font-bold text-[#b0a184]">${rub(p.price)}</span></div>
           ${p.old_price > p.price ? `<div class="text-xs font-bold text-[#b0a184] line-through">${money(p.old_price)}</div>` : ''}
           <div class="text-[11px] font-bold text-[#a39274] mt-0.5">${p.stock > 0 ? p.stock + ' ' + t('stock') : t('out')}</div>
         </div>
@@ -474,7 +477,7 @@ async function renderCart() {
       ${imgBlock(i.product, 'w-16 h-16 rounded-xl object-cover')}
       <div class="flex-1">
         <div class="font-extrabold text-[14px] leading-tight">${pname(i.product)}</div>
-        <div class="text-[13px] font-bold gold mt-0.5">${money(i.product.price)}</div>
+        <div class="text-[13px] font-bold gold mt-0.5">${money(i.product.price)} <span class="text-[11px] font-bold text-[#b0a184]">${rub(i.product.price)}</span></div>
       </div>
       <div class="flex items-center gap-2">
         <button onclick="setQty(${i.id},${i.qty-1})" class="qty-btn">−</button>
@@ -484,7 +487,7 @@ async function renderCart() {
     </div>`).join('') + `
     <div class="card p-4 mt-4 flex items-center justify-between">
       <span class="font-extrabold">${t('total')}</span>
-      <span class="text-xl font-extrabold gold">${money(total)}</span>
+      <span class="text-xl font-extrabold gold">${money(total)} <span class="text-xs font-bold text-[#b0a184]">${rub(total)}</span></span>
     </div>
     <button onclick="openCheckout()" class="btn-gold w-full h-14 rounded-2xl mt-4 font-extrabold tracking-wide">${t('checkout')}</button>`;
 }
@@ -547,6 +550,7 @@ const statusLabel = s => t('status' + s[0].toUpperCase() + s.slice(1));
 async function openOrders() {
   if (DEMO) { toast(demoMsg()); return; }
   showOverlay(t('myOrders'));
+  try {
   const orders = await api('/my/orders?initData=' + encodeURIComponent(tg.initData));
   const body = document.getElementById('overlayBody');
   if (!orders.length) { body.innerHTML = `<div class="text-center text-sm font-semibold text-[#a39274] py-20">${t('noOrders')}</div>`; return; }
@@ -563,15 +567,18 @@ async function openOrders() {
         <span class="font-extrabold gold">${money(o.total)}</span>
       </div>
     </div>`).join('');
+  } catch (e) { toast(e.message); }
 }
 
 // ---------- CHAT ----------
 async function loadChat() {
   if (DEMO) { document.getElementById('chatBox').innerHTML = `<div class="text-center text-sm font-semibold text-[#a39274] py-10">${demoMsg()}</div>`; return; }
+  try {
   const msgs = await api('/support?initData=' + encodeURIComponent(tg.initData));
   document.getElementById('chatBox').innerHTML = msgs.map(m => `
     <div class="max-w-[80%] ${m.from_admin ? 'self-end bg-[#231a10] text-white' : 'self-start card'} px-4 py-2.5 rounded-2xl text-[14px] font-semibold fade-in">${m.text.replace(/</g,'&lt;')}</div>`).join('') ||
     `<div class="text-center text-sm font-semibold text-[#a39274] py-10">${t('chatSub')}</div>`;
+  } catch (e) { toast(e.message); }
 }
 async function sendChat() {
   if (DEMO) { toast(demoMsg()); return; }
