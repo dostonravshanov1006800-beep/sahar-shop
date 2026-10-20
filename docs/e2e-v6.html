@@ -17,8 +17,8 @@ async function api(path, body){
     r = await fetch(API+'/api/catalog'); const cat=await r.json();
     log('3) catalog: '+((cat.products&&cat.products.length>=8&&cat.products[0].price_usd&&cat.banners&&cat.banners.length>=3&&cat.categories&&cat.categories.length>=5)?'OK ('+cat.products.length+' товаров, '+cat.banners.length+' баннеров, USD-цены)':'FAIL '+JSON.stringify(cat).slice(0,120)));
     r = await api('/verify',{initData:QS_CLIENT}); log('4) verify client: '+((r.j.ok&&r.j.user.id===111222333&&r.j.is_owner===false)?'OK ID '+r.j.user.id:'FAIL '+JSON.stringify(r.j).slice(0,100)));
-    r = await api('/verify',{initData:QS_CLIENT+'&hash=deadbeef'}); log('5) forged initData rejected: '+(r.status===403?'OK 403':'FAIL '+r.status));
-    r = await api('/verify',{initData:QS_OWNER}); log('6) verify owner: '+((r.j.ok&&r.j.is_owner===true)?'OK':'FAIL'));
+    r = await api('/verify',{initData:QS_CLIENT.replace(/hash=[0-9a-f]+/,'hash=deadbeef')}); log('5) forged initData rejected: '+(r.status===403?'OK 403':'FAIL '+r.status));
+    r = await api('/verify',{initData:QS_OWNER}); log('6) verify owner: '+((r.j&&r.j.ok&&r.j.is_owner===true)?'OK ID '+r.j.user.id:'FAIL '+JSON.stringify(r.j).slice(0,140)));
     const IDEM='e2e-'+Date.now();
     const ord={initData:QS_CLIENT,items:[{id:1,qty:2},{id:6,qty:1}],name:'E2E Тест',phone:'+79990001122',comment:'',country:'RU',city:'Москва',address:'Тверская 1',delivery:'courier',payment_method:'card',promo:'E2E50',gift:{premium_pack:true},idem_key:IDEM};
     r = await api('/order',ord); log('7) order RU (+промокод, если активен): '+((r.j.ok&&r.j.order_id)?'OK #'+r.j.order_id:'FAIL '+JSON.stringify(r.j).slice(0,120)));
@@ -30,7 +30,7 @@ async function api(path, body){
     // perishable + postal должен быть отклонён
     r = await api('/order',{...ord,idem_key:'e2e3-'+Date.now(),items:[{id:2,qty:1}],delivery:'postal'});
     log('10) скоропорт+почта отклонён: '+(r.j.error==='perishable_courier'?'OK':'FAIL '+JSON.stringify(r.j).slice(0,80)));
-    r = await api('/my/orders?initData='+encodeURIComponent(QS_CLIENT)); const my=await r.json();
+    r = await api('/my/orders?initData='+encodeURIComponent(QS_CLIENT)); const my=r.j;
     const mine = Array.isArray(my)?my:[];
     log('11) my/orders (>=2): '+(mine.length>=2?'OK '+mine.length+' заказов':'FAIL'));
     r = await api('/support',{initData:QS_CLIENT,text:'E2E test message v6'}); log('12) support: '+(r.j.ok?'OK':'FAIL'));
