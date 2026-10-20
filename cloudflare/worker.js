@@ -94,7 +94,8 @@ const DEFAULT_SETTINGS = {
 
 async function getSettings(env) {
   const s = await J.get(env, 'settings');
-  if (s) return s;
+  if (s) return { ...DEFAULT_SETTINGS, ...s };
+  await J.put(env, 'settings', DEFAULT_SETTINGS);
   await J.put(env, 'settings', DEFAULT_SETTINGS);
   return DEFAULT_SETTINGS;
 }
