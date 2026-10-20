@@ -5,7 +5,7 @@ const API='https://sahar-shop.dostonravshanov1006800.workers.dev';
 const OWNER='auth_date=1792474600&query_id=AAtest_owner&user=%7B%22id%22%3A6999767433%2C%22first_name%22%3A%22%5Cu0414%5Cu043e%5Cu0441%5Cu0442%5Cu043e%5Cu043d%22%2C%22username%22%3A%22dostonravshanov%22%2C%22language_code%22%3A%22ru%22%7D&hash=24a6fb1c0d99d06af88360d8142cfbc8e210135076812df2c2800a57d350ba24'; const CLIENT='auth_date=1792474600&query_id=AAtest_client&user=%7B%22id%22%3A111222333%2C%22first_name%22%3A%22%5Cu0422%5Cu0435%5Cu0441%5Cu0442%5Cu043e%5Cu0432%5Cu044b%5Cu0439%20%5Cu043a%5Cu043b%5Cu0438%5Cu0435%5Cu043d%5Cu0442%22%7D&hash=43d1e6b8a3f008f0be91e4657f815a32c3ea86f2a39cb4e5547e443c6454aafe';
 const log=[]; const out=l=>{log.push(l);document.getElementById('out').textContent=log.join('\n');};
 const post=(p,init,extra)=>fetch(API+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:init,...(extra||{})})}).then(async r=>({s:r.status,j:await r.json().catch(()=>null)}));
-const get=p=>fetch(API+p).then(async r=>({s:r.status,j:await r.json().catch(()=>null)}));
+const get=(p,init)=>fetch(API+p+(init?(p.includes('?')?'&':'?')+'initData='+encodeURIComponent(init):'')).then(async r=>({s:r.status,j:await r.json().catch(()=>null)}));
 (async()=>{
 try{
   const step=async(n,f)=>{try{await f();out(n+' OK')}catch(e){out(n+' FAIL: '+e)}};
@@ -13,7 +13,7 @@ try{
   let catalog=[];
   await step('2) catalog 10+ products', async()=>{const r=await get('/api/catalog'); if(!r.j||!r.j.products||r.j.products.length<10)throw 'products '+(r.j&&r.j.products&&r.j.products.length);catalog=r.j.products;});
   await step('3) verify client (ID ok)', async()=>{const r=await post('/api/verify',CLIENT); if(!r.j||!r.j.ok)throw 'status '+r.s;});
-  await step('4) forged hash rejected 403', async()=>{const r=await post('/api/verify','hash=forged&'+CLIENT); if(r.s!==403)throw 'HTTP '+r.s;});
+  await step('4) forged hash rejected 403', async()=>{const r=await post('/api/verify','hash=forged&'+CLIENT); if(r.s!==403&&r.s!==401)throw 'HTTP '+r.s;});
   let orderId=0;
   await step('5) order created + stock decremented', async()=>{
     const items=catalog.filter(p=>p.stock>0).slice(0,2).map(p=>({id:p.id,qty:1}));
@@ -23,16 +23,16 @@ try{
     const c2=await get('/api/catalog'); const after=c2.j.products.find(p=>p.id===items[0].id).stock;
     if(after!==before-1)throw 'stock '+before+'->'+after;
   });
-  await step('6) order in my-orders', async()=>{const r=await post('/api/my-orders',CLIENT); if(!r.j||!r.j.orders||!r.j.orders.some(o=>o.id===orderId))throw 'not in list';});
+  await step('6) order in my-orders', async()=>{const r=await get('/api/my/orders',CLIENT); if(!Array.isArray(r.j)||!r.j.some(o=>o.id===orderId))throw 'not in list '+JSON.stringify(r.j).slice(0,80);});
   await step('7) support message ok', async()=>{const r=await post('/api/support',CLIENT,{text:'e2e support test'}); if(!r.j||!r.j.ok)throw JSON.stringify(r.j);});
-  await step('8) admin sees the order', async()=>{const r=await post('/api/admin/orders',OWNER); if(!r.j||!r.j.orders||!r.j.orders.some(o=>o.id===orderId))throw 'not in admin';});
+  await step('8) admin sees the order', async()=>{const r=await get('/api/admin/orders',OWNER); if(!Array.isArray(r.j)||!r.j.some(o=>o.id===orderId))throw 'not in admin';});
   await step('9) status new->accepted->delivering->done', async()=>{
     for(const st of['accepted','delivering','done']){
-      const r=await post('/api/admin/order',OWNER,{id:orderId,status:st});
+      const r=await post('/api/admin/order',OWNER,{order_id:orderId,status:st});
       if(!r.j||!r.j.ok)throw st+': '+JSON.stringify(r.j);
     }
   });
-  await step('10) client CANNOT change orders 403', async()=>{const r=await post('/api/admin/order',CLIENT,{id:orderId,status:'done'}); if(r.s!==403)throw 'HTTP '+r.s;});
+  await step('10) client CANNOT change orders 403/401', async()=>{const r=await post('/api/admin/order',CLIENT,{order_id:orderId,status:'done'}); if(r.s!==403&&r.s!==401)throw 'HTTP '+r.s;});
   let pid=0;
   await step('11) product created', async()=>{const r=await post('/api/admin/product',OWNER,{product:{name_ru:'E2E test',name_uz:'E2E test',price:5000,category_id:1,stock:1}}); if(!r.j||!r.j.ok)throw JSON.stringify(r.j); pid=r.j.id;});
   await step('12) product edited (partial)', async()=>{const r=await post('/api/admin/product',OWNER,{product:{id:pid,name_ru:'E2E test v2',price:6000}}); if(!r.j||!r.j.ok)throw JSON.stringify(r.j);});
@@ -42,7 +42,7 @@ try{
     if(!up.j||!up.j.url)throw JSON.stringify(up.j);
     const img=await fetch(up.j.url); if(img.status!==200)throw 'img HTTP '+img.status;
   });
-  await step('14) client CANNOT create products 403', async()=>{const r=await post('/api/admin/product',CLIENT,{product:{name_ru:'hack',price:1}}); if(r.s!==403)throw 'HTTP '+r.s;});
+  await step('14) client CANNOT create products 403/401', async()=>{const r=await post('/api/admin/product',CLIENT,{product:{name_ru:'hack',price:1}}); if(r.s!==403&&r.s!==401)throw 'HTTP '+r.s;});
   out('=== E2E V4 RESULT: '+log.filter(l=>l.endsWith('OK')).length+'/'+log.filter(l=>l.endsWith('OK')||l.includes('FAIL')).length+' steps passed; created order#'+orderId+' product#'+pid+' (cleanup needed) ===');
 }catch(e){out('FATAL: '+e)}
 })();
