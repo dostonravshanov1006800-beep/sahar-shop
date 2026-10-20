@@ -1,0 +1,42 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>E2E v6.2</title></head><body>
+<pre id="log">E2E v6.2 running…</pre>
+<script>
+const API='https://sahar-shop.dostonravshanov1006800.workers.dev';
+const QS_OWNER='auth_date=1792479830&query_id=q_dostonravshanov&user=%7B%22id%22%3A6999767433%2C%22first_name%22%3A%22%D0%94%D0%BE%D1%81%D1%82%D0%BE%D0%BD%22%2C%22username%22%3A%22dostonravshanov%22%2C%22language_code%22%3A%22ru%22%7D&hash=6b92032a3b7ec522fab18ab1a1097e6fab3bbaf2d4056f42e7a874f28f72642c', QS_CLIENT='auth_date=1792479830&query_id=q_e2e_client&user=%7B%22id%22%3A111222333%2C%22first_name%22%3A%22E2E%22%2C%22username%22%3A%22e2e_client%22%2C%22language_code%22%3A%22ru%22%7D&hash=6d8732166ea328f37a9a107436a677d2e90be0ac5eb3dd6fb074e5827e491856';
+const out=[]; const log=s=>{out.push(s); document.getElementById('log').textContent=out.join('\n');};
+async function api(path, body){
+  const r = await fetch(API+'/api'+path, body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:undefined);
+  let j=null; try{ j=await r.json(); }catch(e){}
+  return { status:r.status, j };
+}
+(async()=>{
+  try{
+    let r = await api('/ping'); log('1) ping: '+(r.j.v===6?'OK':'FAIL'));
+    // промокод: создать → проверить публично → удалить
+    await api('/admin/promo',{initData:QS_OWNER,promo:{code:'E2EV62',percent:15}});
+    r = await fetch(API+'/api/promo?code=e2ev62'); const pj = await r.json();
+    log('2) промокод E2EV62 −15% (public): '+(pj.ok&&pj.percent===15?'OK':'FAIL '+JSON.stringify(pj)));
+    r = await fetch(API+'/api/promo?code=NOPE'); log('3) левый промокод 404: '+(r.status===404?'OK':'FAIL'));
+    // заказ картой → awaiting_payment
+    const ord={initData:QS_CLIENT,items:[{id:1,qty:1}],name:'E2E v62',phone:'+7 900 555 66 77',country:'RU',city:'Москва',address:'Арбат 5',delivery:'courier',payment_method:'card',idem_key:'v62-'+Date.now()};
+    r = await api('/order',ord); const oid=r.j.order_id; log('4) заказ картой: '+(r.j.ok?'OK #'+oid:'FAIL'));
+    r = await api('/my/orders?initData='+encodeURIComponent(QS_CLIENT)); const mine=r.j;
+    const myOrder = mine.find(o=>o.id===oid);
+    log('5) статус awaiting_payment у перевода: '+(myOrder&&myOrder.status==='awaiting_payment'?'OK':'FAIL '+(myOrder?myOrder.status:'?')));
+    // наличные → new
+    r = await api('/order',{...ord,idem_key:'v62c-'+Date.now(),payment_method:'cash'}); const oid2=r.j.order_id;
+    r = await api('/my/orders?initData='+encodeURIComponent(QS_CLIENT));
+    const my2=r.j.find(o=>o.id===oid2);
+    log('6) наличные → new: '+(my2&&my2.status==='new'?'OK':'FAIL'));
+    // оплата вне страны запрещена (spb из КЗ)
+    r = await api('/order',{...ord,idem_key:'v62k-'+Date.now(),country:'KZ',city:'Алматы',address:'Абая 1',payment_method:'spb'});
+    log('7) СБП из КЗ отклонён: '+(r.j.error==='bad_payment'?'OK':'FAIL '+JSON.stringify(r.j).slice(0,60)));
+    // незнакомая страна
+    r = await api('/order',{...ord,idem_key:'v62x-'+Date.now(),country:'XX'});
+    log('8) страна XX отклонена: '+(r.j.error==='bad_country'?'OK':'FAIL'));
+    // статус → paid кнопкой владельца
+    r = await api('/admin/order',{initData:QS_OWNER,id:oid,status:'paid'}); log('9) awaiting→paid: '+(r.j.ok?'OK':'FAIL'));
+    log('=== КОНЕЦ. Чистка: заказы #'+oid+' #'+oid2+', промокод E2EV62 ===');
+  }catch(e){ log('CRASH: '+e.message); }
+})();
+</script></body></html>

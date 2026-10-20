@@ -638,8 +638,7 @@ async function handleUpdate(env, u) {
       const msgs = await J.get(env, 'msgs:' + tid, []);
       msgs.push({ from_admin: false, text: phoneTxt, at: new Date().toISOString(), read: false });
       await J.put(env, 'msgs:' + tid, msgs.slice(-200));
-      await notifyOwners(env, '📞 <b>Клиент поделился номером</b>
-👤 ' + esc(m.from.first_name || '') + ' · <a href="tg://user?id=' + tid + '">' + tid + '</a>\n📱 <code>' + esc(m.contact.phone_number || '') + '</code>',
+      await notifyOwners(env, '📞 <b>Клиент поделился номером</b>\n👤 ' + esc(m.from.first_name || '') + ' · <a href="tg://user?id=' + tid + '">' + tid + '</a>\n📱 <code>' + esc(m.contact.phone_number || '') + '</code>',
         { inline_keyboard: [[{ text: '💬 Ответить', callback_data: 'rep:' + tid }]] });
       return;
     }
