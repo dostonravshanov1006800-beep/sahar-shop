@@ -174,7 +174,7 @@ async function orderText(o) {
     (o.comment ? '\n💬 ' + esc(o.comment) : '') + '\n👤 ' + esc(o.client.first_name || '') + ' · ' + o.client.telegram_id;
 }
 
-const BANNER_PHOTO = 'https://dostonravshanov1006800-beep.github.io/sahar-shop/assets/banner2.jpg';
+const BANNER_PHOTO = 'https://dostonravshanov1006800-beep.github.io/sahar-shop/assets/banner_sng.jpg';
 
 // ---------- Bot: обновления ----------
 async function handleUpdate(env, u) {
