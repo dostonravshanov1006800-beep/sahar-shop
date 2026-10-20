@@ -723,8 +723,8 @@ async function handleUpdate(env, u) {
     if (await isOwner(env, tid)) {
       if (m.text && m.text.startsWith('/')) { const pr2 = await J.get(env, 'pending_reply:' + tid); if (pr2) await J.del(env, 'pending_reply:' + tid); }
       if (m.text && m.text.startsWith('/start')) {
-        await tgApi(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML',
-          text: '👑 <b>SAHAR — панель владельца</b>\n\n🆔 Ваш Telegram ID: <code>' + tid + '</code>\n/orders — последние заказы\nЛюбое сообщение покупателя приходит сюда.',
+        await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML',
+          text: CE_BRAND() + ' <b>SAHAR — панель владельца</b>\n\n🆔 Ваш Telegram ID: <code>' + tid + '</code>\n' + tgE(CE.order, '🏪') + ' /orders — последние заказы\nЛюбое сообщение покупателя приходит сюда.',
           reply_markup: { inline_keyboard: [
             [{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=12' } }],
             [{ text: '🎛 Админ-панель', web_app: { url: env.WEBAPP_URL + 'admin.html?v=12' } }],
@@ -757,8 +757,8 @@ async function handleUpdate(env, u) {
     // клиент
     if (m.text && m.text.startsWith('/orders')) { await sendOrders(env, tid, true); return; }
     if (m.text && m.text.startsWith('/start')) {
-      await tgApi(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML',
-        text: 'Добро пожаловать в <b>SAHAR</b> ✦\nАвторские сладости ручной работы: трюфели, шоколад, восточные десерты и подарочные наборы.\n\nДоставка по странам СНГ. Откройте магазин и закажите за пару касаний.',
+      await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML',
+        text: CE_BRAND() + ' Добро пожаловать в <b>SAHAR</b>!\nАвторские сладости ручной работы: трюфели, шоколад, восточные десерты и ' + tgE(CE.gift, '🎁') + ' подарочные наборы.\n\nДоставка по странам СНГ. Откройте магазин и закажите за пару касаний.',
         reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=12' } }]] } });
       await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=12' } } });
       return;
@@ -791,7 +791,7 @@ async function handleUpdate(env, u) {
         tgE(CE.chat, '💬') + ' <b>Сообщение от клиента</b>\n' + esc(msgText || '(вложение)') + '\n' + tgE(CE.client, '👤') + ' ' + esc(m.from.first_name || '') + ' · <a href="tg://user?id=' + tid + '">' + tid + '</a>',
         replyKb(tid));
     }
-    await tgApi(env, 'sendMessage', { chat_id: tid, text: '✅ Сообщение отправлено. Мы ответим здесь и в разделе «Сообщения» магазина.', reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=12' } }]] } });
+    await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text: CE_BRAND() + ' Сообщение отправлено. Мы ответим здесь и в разделе «Сообщения» магазина.', reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=12' } }]] } });
     return;
   }
   if (u.callback_query) {
