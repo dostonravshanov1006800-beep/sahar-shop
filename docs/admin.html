@@ -26,6 +26,7 @@
 <div class="px-4 pt-5 pb-3">
   <div class="display text-[26px] font-extrabold tracking-[0.18em]">SAHAR<span class="gold">.</span></div>
   <div class="text-[10px] font-extrabold tracking-[0.3em] uppercase gold">Админ-панель · только владелец</div>
+  <div id="adminIdBadge" class="mt-1 text-[11px] font-bold text-[#7a6a4f]"></div>
 </div>
 
 <div id="noAccess" class="hidden px-6 py-24 text-center">
@@ -95,6 +96,7 @@ async function init() {
   try {
     const j = await api('/verify', { method:'POST', body: JSON.stringify({ initData: tg.initData || '' }) });
     if (!j.is_admin) { document.getElementById('noAccess').classList.remove('hidden'); return; }
+    if (j.user && j.user.telegram_id) document.getElementById('adminIdBadge').textContent = '👑 ' + (j.user.first_name || 'Владелец') + ' · Telegram ID: ' + j.user.telegram_id;
   } catch (e) { document.getElementById('noAccess').classList.remove('hidden'); return; }
   document.getElementById('panel').classList.remove('hidden');
   cats = (await api('/catalog')).categories;
@@ -143,7 +145,7 @@ function renderOrders() {
       <div class="mt-2 text-[13px] font-semibold leading-relaxed">${items}</div>
       <div class="mt-2 text-[13px] font-semibold text-[#6d5c3f]">📍 ${o.address}<br>📞 ${o.phone}${o.comment ? '<br>💬 ' + o.comment : ''}</div>
       <div class="flex justify-between items-center mt-3 pt-3 border-t border-[#f0e9dd]">
-        <a href="https://t.me/${o.client.username || 'user'}" class="text-[12px] font-extrabold gold">@${o.client.first_name || o.client.telegram_id} · ${o.client.telegram_id}</a>
+        <a href="https://t.me/${o.client.username || 'user'}" class="text-[12px] font-extrabold gold">@${o.client.first_name || o.client.telegram_id} · ID ${o.client.telegram_id}</a>
         <span class="font-extrabold gold">${money(o.total)}</span>
       </div>
       ${nextBtn ? `<div class="flex gap-2 mt-3">${nextBtn}</div>` : ''}
