@@ -629,6 +629,7 @@ async function handleUpdate(env, u) {
   if (u.message) {
     const m = u.message, tid = m.from.id;
     if (await isOwner(env, tid)) {
+      if (m.text && m.text.startsWith('/')) { const pr2 = await J.get(env, 'pending_reply:' + tid); if (pr2) await J.del(env, 'pending_reply:' + tid); }
       if (m.text && m.text.startsWith('/start')) {
         await tgApi(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML',
           text: '👑 <b>SAHAR — панель владельца</b>\n\n🆔 Ваш Telegram ID: <code>' + tid + '</code>\n/orders — последние заказы\nЛюбое сообщение покупателя приходит сюда.',
@@ -690,7 +691,9 @@ async function handleUpdate(env, u) {
     await J.put(env, 'msgs:' + tid, msgs.slice(-200));
     if (m.photo) {
       const fid = m.photo[m.photo.length - 1].file_id;
-      try { await tgApi(env, 'sendPhoto', { chat_id: (await ownerIds(env))[0], photo: fid, caption: '🖼 <b>Фото от клиента</b>' + (msgText ? '\n' + esc(msgText) : '') + '\n👤 ' + esc(m.from.first_name || '') + ' · <a href="tg://user?id=' + tid + '">' + tid + '</a>', parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: '💬 Ответить', callback_data: 'rep:' + tid }]] } }); } catch (e) {}
+      for (const oid of await ownerIds(env)) {
+        try { await tgApi(env, 'sendPhoto', { chat_id: oid, photo: fid, caption: '🖼 <b>Фото от клиента</b>' + (msgText ? '\n' + esc(msgText) : '') + '\n👤 ' + esc(m.from.first_name || '') + ' · <a href="tg://user?id=' + tid + '">' + tid + '</a>', parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: '💬 Ответить', callback_data: 'rep:' + tid }]] } }); } catch (e) {}
+      }
     } else {
       await notifyOwners(env,
         '💬 <b>Сообщение от клиента</b>\n' + esc(msgText || '(вложение)') + '\n👤 ' + esc(m.from.first_name || '') + ' · <a href="tg://user?id=' + tid + '">' + tid + '</a>',

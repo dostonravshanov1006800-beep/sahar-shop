@@ -324,10 +324,10 @@ async function api(path, body){
   if (!r.ok) { const e = await r.json().catch(()=>({})); const err = new Error(e.error || 'network'); err.code = r.status; throw err; }
   return r.json();
 }
-function save(){ localStorage.setItem('sahar_v6', JSON.stringify({ cart:S.cart, fav:S.fav, addrs:S.addrs, selAddr:S.selAddr, lang:S.lang, country:S.country ? S.country.code : null, theme:S.theme||'auto', promo:S.promo||'', promoPct:S.promoPct||0 })); }
+function save(){ localStorage.setItem('sahar_v6', JSON.stringify({ cart:S.cart, fav:S.fav, addrs:S.addrs, selAddr:S.selAddr, lang:S.lang, country:S.country ? S.country.code : null, theme:S.theme||'auto', promo:S.promo||'', promoPct:S.promoPct||0, giftPack:!!S.giftPack, giftCardText:S.giftCardText||'', anon:!!S.anon })); }
 function loadLocal(){
   try { const d = JSON.parse(localStorage.getItem('sahar_v6') || '{}');
-    S.cart = d.cart || {}; S.fav = d.fav || []; S.addrs = d.addrs || []; S.selAddr = typeof d.selAddr === 'number' ? d.selAddr : -1; S.promo = d.promo || ''; S.promoPct = d.promoPct || 0;
+    S.cart = d.cart || {}; S.fav = d.fav || []; S.addrs = d.addrs || []; S.selAddr = typeof d.selAddr === 'number' ? d.selAddr : -1; S.promo = d.promo || ''; S.promoPct = d.promoPct || 0; S.giftPack = !!d.giftPack; S.giftCardText = d.giftCardText || ''; S.anon = !!d.anon;
     S.lang = d.lang || 'ru'; S.theme = d.theme || 'auto';
     if (d.country) { const c = S.settings.countries.find(x=>x.code===d.country); if (c) S.country = c; }
   } catch(e){}
@@ -626,14 +626,14 @@ function openCart(){
   renderCart(); openSheet('cart');
 }
 async function applyPromo(){
-  const code = $('promoIn').value.trim().toUpperCase(); S.promo = code; save();
-  if (!code){ S.promoPct=0; renderCart(); return; }
+  const code = $('promoIn').value.trim().toUpperCase(); S.promo = code;
+  if (!code){ S.promoPct=0; save(); renderCart(); return; }
   try {
     const r = await fetch(API + '/api/promo?code=' + encodeURIComponent(code)); const j = await r.json();
     if (j.ok){ S.promoPct = j.percent||0; toast('−' + j.percent + '% применён'); }
     else { S.promoPct = 0; toast('Промокод не найден'); }
   } catch(e){ toast(t('net')); }
-  renderCart();
+  save(); renderCart();
 }
 function cartDiscount(){ return Math.round(cartTotal() * (S.promoPct||0)) / 100; }
 function renderCart(){
@@ -665,7 +665,7 @@ function renderCart(){
     <label class="opt ${S.giftPack?'on':''}" onclick="S.giftPack=this.classList.toggle('on');save();renderCart()"><span class="ot">${t('giftPack')}</span><span class="radio"></span></label>
     <label class="opt ${S.anon?'on':''}" onclick="S.anon=this.classList.toggle('on');save()"><span class="ot">${t('anon')}</span><span class="radio"></span></label>
     ${S.promoPct?`<div class="sumrow" style="color:var(--caramel-deep);font-weight:800;margin-top:12px"><span>${t('promo')} (−${S.promoPct}%)</span><span>−${money(cartDiscount())}</span></div>`:''}
-    <div class="sumrow tot" style="margin-top:12px"><span>${t('total')}</span><span class="price" style="font-size:19px">${money(sub + (S.giftPack?3:0) - cartDiscount())}</span></div>
+    <div class="sumrow tot" style="margin-top:12px"><span>${t('total')}</span><span class="price" style="font-size:19px">${money(sub)}</span></div>
     <button class="btn btn-pri press" style="margin-top:14px" onclick="startCheckout()">${t('checkout')}</button>`;
 }
 
