@@ -1,0 +1,40 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>E2E</title></head>
+<body style="font-family:monospace;padding:16px;white-space:pre-wrap" id="out">running...</body>
+<script>
+const API = 'https://sahar-shop.dostonravshanov1006800.workers.dev';
+const INIT_OWNER = 'auth_date=1792474600&query_id=AAtest_owner&user=%7B%22id%22%3A6999767433%2C%22first_name%22%3A%22%5Cu0414%5Cu043e%5Cu0441%5Cu0442%5Cu043e%5Cu043d%22%2C%22username%22%3A%22dostonravshanov%22%2C%22language_code%22%3A%22ru%22%7D&hash=24a6fb1c0d99d06af88360d8142cfbc8e210135076812df2c2800a57d350ba24';
+const INIT_CLIENT = 'auth_date=1792474600&query_id=AAtest_client&user=%7B%22id%22%3A111222333%2C%22first_name%22%3A%22%5Cu0422%5Cu0435%5Cu0441%5Cu0442%5Cu043e%5Cu0432%5Cu044b%5Cu0439%20%5Cu043a%5Cu043b%5Cu0438%5Cu0435%5Cu043d%5Cu0442%22%7D&hash=43d1e6b8a3f008f0be91e4657f815a32c3ea86f2a39cb4e5547e443c6454aafe';
+const log = [];
+function out(l){ log.push(l); document.getElementById('out').textContent = log.join('\n'); }
+async function api(path, initData, extra) {
+  const r = await fetch(API + path, { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ initData, ...(extra||{}) }) });
+  return { status: r.status, j: await r.json().catch(()=>null) };
+}
+(async () => {
+  try {
+    // 1) каталог публичный
+    const c = await fetch(API + '/api/catalog').then(r=>r.json());
+    out('1) /api/catalog: товаров=' + c.products.length + ' категорий=' + c.categories.length);
+    // 2) verify владельца
+    const vo = await api('/api/verify', INIT_OWNER);
+    out('2) verify владелец: status=' + vo.status + ' is_admin=' + vo.j.is_admin + ' id=' + vo.j.user.telegram_id);
+    // 3) verify клиента
+    const vc = await api('/api/verify', INIT_CLIENT);
+    out('3) verify клиент: status=' + vc.status + ' is_admin=' + vc.j.is_admin + ' id=' + vc.j.user.telegram_id);
+    // 4) клиент делает заказ
+    const prod = c.products[0];
+    const ord = await api('/api/order', INIT_CLIENT, { items: [{ id: prod.id, qty: 2 }], address: 'Ташкент, тест 1', phone: '+998901234567', comment: 'E2E тест', payment_method: 'cash' });
+    out('4) заказ: status=' + ord.status + ' ответ=' + JSON.stringify(ord.j));
+    // 5) владелец видит заказы в админке
+    const orders = await api('/api/orders', INIT_OWNER);
+    const list = orders.j.orders || orders.j;
+    out('5) админ /api/orders: status=' + orders.status + ' всего=' + (Array.isArray(list) ? list.length : JSON.stringify(orders.j).slice(0,120)));
+    if (Array.isArray(list) && list[0]) out('   последний: ' + JSON.stringify(list[0]).slice(0, 200));
+    // 6) клиент пишет в поддержку
+    const sup = await api('/api/support', INIT_CLIENT, { text: 'Привет, это тест поддержки!' });
+    out('6) поддержка: status=' + sup.status + ' ответ=' + JSON.stringify(sup.j).slice(0,100));
+    out('=== E2E ЗАВЕРШЁН ===');
+  } catch (e) { out('ОШИБКА: ' + e); }
+})();
+</script></body></html>
