@@ -174,7 +174,6 @@ async function orderText(o) {
     (o.comment ? '\n💬 ' + esc(o.comment) : '') + '\n👤 ' + esc(o.client.first_name || '') + ' · ' + o.client.telegram_id;
 }
 
-const BANNER_PHOTO = 'https://dostonravshanov1006800-beep.github.io/sahar-shop/assets/banner_sng.jpg';
 
 // ---------- Bot: обновления ----------
 async function handleUpdate(env, u) {
@@ -182,13 +181,13 @@ async function handleUpdate(env, u) {
     const m = u.message, tid = m.from.id;
     if (await isOwner(env, tid)) {
       if (m.text === '/start') {
-        await tgApi(env, 'sendPhoto', { chat_id: tid, photo: BANNER_PHOTO, parse_mode: 'HTML',
-          caption: '🤍 <b>SAHAR</b> · премиальные сладости\nРучная работа · Доставка по СНГ',
-          reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=3' } }]] } });
         await tgApi(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text:
           '👑 <b>SAHAR — панель владельца</b>\n\n🆔 Ваш Telegram ID: <code>' + tid + '</code>\n/orders — последние заказы\nЛюбое сообщение покупателя приходит сюда.',
-          reply_markup: { inline_keyboard: [[{ text: '🎛 Админ-панель', web_app: { url: env.WEBAPP_URL + 'admin.html?v=3' } }]] } });
-        await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=3' } } });
+          reply_markup: { inline_keyboard: [
+            [{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=4' } }],
+            [{ text: '🎛 Админ-панель', web_app: { url: env.WEBAPP_URL + 'admin.html?v=4' } }]
+          ] } });
+        await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=4' } } });
         return;
       }
       if (m.text === '/orders') return void await sendOrders(env, tid);
@@ -206,10 +205,10 @@ async function handleUpdate(env, u) {
     }
     // покупатель
     if (m.text === '/start') {
-      await tgApi(env, 'sendPhoto', { chat_id: tid, photo: BANNER_PHOTO, parse_mode: 'HTML',
-        caption: '🤍 <b>SAHAR</b> · премиальные сладости\nРучная работа · Доставка по СНГ\n\nНажмите кнопку и закажите с доставкой.',
-        reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=3' } }]] } });
-      await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=3' } } });
+      await tgApi(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML',
+        text: '🤍 <b>SAHAR</b> · премиальные сладости\nРучная работа · Доставка по СНГ\n\nНажмите кнопку и закажите с доставкой.',
+        reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=4' } }]] } });
+      await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: env.WEBAPP_URL + '?v=4' } } });
       return;
     }
     if (m.text) {
@@ -407,13 +406,13 @@ async function handle(request, env) {
   if (p === '/api/admin/product' && request.method === 'POST') {
     await ensureSeed(env);
     const b = body.product || {};
-    if (!b.name_ru || !b.price) return json({ error: 'bad_request' }, 400);
     if (b.id) {
       const existing = await J.get(env.SHOP, 'prod:' + b.id);
       if (!existing) return json({ error: 'not_found' }, 404);
       await J.put(env.SHOP, 'prod:' + b.id, { ...existing, ...b });
       return json({ ok: true });
     }
+    if (!b.name_ru || b.price === undefined || b.price === null) return json({ error: 'bad_request' }, 400);
     const ids = await J.get(env.SHOP, 'prod_ids', []);
     const id = Math.max(0, ...ids) + 1;
     await J.put(env.SHOP, 'prod:' + id, { id, category_id: b.category_id || 1,

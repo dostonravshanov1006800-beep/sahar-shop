@@ -88,7 +88,7 @@
 <script>
 const tg = window.Telegram.WebApp;
 tg.ready(); tg.expand(); tg.setHeaderColor('#faf8f3');
-let cats = [], editPid = null, ordersCache = [];
+let cats = [], editPid = null, ordersCache = [], productListCache = [];
 const PH = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/Chocolate_truffle_-_Delacre.jpg/960px-Chocolate_truffle_-_Delacre.jpg';
 const money = n => (n||0).toLocaleString('ru-RU').replace(/\u00A0/g,' ') + ' сум';
 const STATUS_RU = { new:'Новый', accepted:'Принят', delivering:'В доставке', done:'Завершён', cancelled:'Отменён' };
@@ -119,6 +119,8 @@ async function onPickPhoto(input) {
     tg.HapticFeedback?.impactOccurred('light');
   } catch (e) {
     alert('Не удалось загрузить фото: ' + e.message);
+    document.getElementById('pfImage').value = '';
+    document.getElementById('pfPreview').src = PH;
     input.value = '';
   }
 }
@@ -189,7 +191,7 @@ function renderOrders() {
       <div class="mt-2 text-[13px] font-semibold leading-relaxed">${items}</div>
       <div class="mt-2 text-[13px] font-semibold text-[#6d5c3f]">📍 ${o.address}<br>📞 ${o.phone}${o.comment ? '<br>💬 ' + o.comment : ''}</div>
       <div class="flex justify-between items-center mt-3 pt-3 border-t border-[#f0e9dd]">
-        <a href="https://t.me/${o.client.username || 'user'}" class="text-[12px] font-extrabold gold">@${o.client.first_name || o.client.telegram_id} · ID ${o.client.telegram_id}</a>
+        <a href="${o.client.username ? 'https://t.me/' + o.client.username : 'javascript:void(0)'}" class="text-[12px] font-extrabold gold">${o.client.username ? '@' + o.client.username : (o.client.first_name || 'ID ' + o.client.telegram_id)} · ID ${o.client.telegram_id}</a>
         <span class="font-extrabold gold">${money(o.total)}</span>
       </div>
       ${nextBtn ? `<div class="flex gap-2 mt-3">${nextBtn}</div>` : ''}
@@ -237,7 +239,6 @@ function tab(name) {
   });
 }
 
-let productListCache = [];
 function showProductForm(pid) {
   editPid = pid || null;
   {
@@ -245,6 +246,7 @@ function showProductForm(pid) {
     const p = pid ? list.find(x => x.id === pid) : null;
     document.getElementById('pfCat').innerHTML = cats.map(c => `<option value="${c.id}" ${p && p.category_id===c.id?'selected':''}>${c.name_ru}</option>`).join('');
     document.getElementById('pfImage').value = p ? (p.image_url || '') : '';
+    document.getElementById('pfPreview').src = (p && p.image_url) ? p.image_url : PH;
     document.getElementById('pfNameRu').value = p ? p.name_ru : '';
     document.getElementById('pfNameUz').value = p ? p.name_uz : '';
     document.getElementById('pfDescRu').value = p ? p.desc_ru : '';
@@ -267,7 +269,7 @@ async function saveProduct() {
     price: parseInt(document.getElementById('pfPrice').value) || 0,
     old_price: parseInt(document.getElementById('pfOld').value) || 0,
     stock: parseInt(document.getElementById('pfStock').value) || 0,
-    is_active: true,
+    is_active: editPid ? ((productListCache.find(x => x.id === editPid) || {}).is_active ?? true) : true,
   };
   if (!body.name_ru || !body.price) { alert('Название и цена обязательны'); return; }
   if (editPid) body.id = editPid;
