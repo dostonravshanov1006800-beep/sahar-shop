@@ -52,9 +52,13 @@ img{-webkit-user-drag:none}
 .fadein{animation:fadeUp .3s ease both}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 /* каркас */
-#app{max-width:430px;margin:0 auto;min-height:100dvh;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 96px)}
+#app{max-width:430px;margin:0 auto;min-height:100dvh;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 112px)}
+#main.vin{animation:vin .34s cubic-bezier(.32,.72,.28,1)}
+@keyframes vin{from{opacity:0;transform:translateX(26px) scale(.985)}to{opacity:1;transform:none}}
+#main.vout{animation:vout .22s ease}
+@keyframes vout{from{opacity:1}to{opacity:0;transform:translateX(-14px)}}
 #main{padding:0 16px 20px}
-header{position:sticky;top:0;z-index:40;background:var(--bg);border-bottom:1px solid var(--hair);padding:calc(env(safe-area-inset-top,0px) + 8px) 16px 10px}
+header{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop-filter:blur(28px) saturate(1.8);-webkit-backdrop-filter:blur(28px) saturate(1.8);border-bottom:1px solid color-mix(in srgb,var(--hair) 70%,transparent);padding:calc(env(safe-area-inset-top,0px) + 8px) 16px 10px}
 .hrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .brand{line-height:1;cursor:default;display:flex;align-items:center;gap:8px}
 .brand .bflower{color:var(--caramel-deep)}
@@ -544,10 +548,21 @@ function renderNav(){
   };
   $('navIn').innerHTML = TABS.map(([v,k])=>`<button class="tab press-h ${S.view===v?'on':''}" onclick="nav('${v}')" aria-label="${t(k)}"><span class="tic">${TAB_ICONS[k][S.view===v?'f':'o']}${badge(v)}</span><span>${t(k)}</span></button>`).join('');
 }
+const TAB_ORDER = { shop:0, fav:1, chat:2, profile:3 };
+function viewTransition(to){
+  const m = $('main'); if (!m) return;
+  const from = TAB_ORDER[S._pv] ?? 0, dest = TAB_ORDER[to] ?? 0;
+  window.scrollTo(0,0);
+  m.classList.remove('vin','vout'); void m.offsetWidth;
+  m.style.animationDirection = dest >= from ? 'normal' : 'reverse';
+  m.classList.add('vin');
+  S._pv = to;
+}
 function nav(v){ haptic(); S.view=v; renderNav();
   if (S.chatTimer){ clearInterval(S.chatTimer); S.chatTimer=null; }
   if (v!=='chat' && v!=='profile'){ closeOvl(true); }
   if (v==='shop' || v==='fav'){ renderSections(); }
+  viewTransition(v);
   if (v==='chat'){ openChatView(); }
   if (v==='profile'){ openProfile(); }
 }
