@@ -19,7 +19,7 @@ body{background:var(--bg);color:var(--text);font:600 14px 'Manrope';overflow-x:h
 .logo{font-family:'Playfair Display';font-weight:900;font-size:21px;background:linear-gradient(120deg,var(--gold1),var(--gold2));-webkit-background-clip:text;background-clip:text;color:transparent}
 .badge{font-size:10px;font-weight:800;color:var(--muted);border:1px solid var(--hair);padding:4px 10px;border-radius:9px}
 #noAccess{text-align:center;padding-top:30vh}
-.tabs{display:flex;gap:6px;margin:16px 0 14px;overflow-x:auto}
+.tabs{display:flex;gap:6px;margin:16px 0 14px;overflow-x:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 92%,transparent);mask-image:linear-gradient(90deg,#000 92%,transparent)}
 .tab{flex:none;padding:9px 15px;border-radius:12px;background:var(--surface);border:1px solid var(--hair);font-weight:800;font-size:12.5px;color:var(--muted);cursor:pointer;white-space:nowrap}
 .tab.on{background:linear-gradient(120deg,var(--gold1),var(--gold2));color:#fff;border-color:transparent}
 .cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -32,7 +32,7 @@ body{background:var(--bg);color:var(--text);font:600 14px 'Manrope';overflow-x:h
 .st-new{background:var(--sand);color:var(--muted)} .st-awaiting_payment{background:#F7EEDC;color:var(--gold2)}
 .st-paid,.st-confirmed,.st-delivered{background:#EBF3EC;color:var(--ok)} .st-packing,.st-shipping{background:#F7EEDC;color:var(--gold2)}
 .st-cancelled,.st-refunded{background:#F6E7E4;color:var(--err)}
-.STR{new:'Новый',awaiting_payment:'Ожидает оплату',paid:'Оплачен',confirmed:'Подтверждён',packing:'Собирается',shipping:'В доставке',delivered:'Доставлен',cancelled:'Отменён',refunded:'Возврат'}
+.STR{new:'Новый',awaiting_payment:'Принят',paid:'Принят',confirmed:'Принят',packing:'Принят',shipping:'В доставке',delivered:'Доставлен',cancelled:'Отменён',refunded:'Отменён'}
 .btn{display:inline-block;border:none;border-radius:13px;padding:11px 15px;font:800 13px 'Manrope';cursor:pointer}
 .btn-gold{background:linear-gradient(120deg,var(--gold1),var(--gold2));color:#fff}
 .btn-ghost{background:var(--bg);border:1px solid var(--hair);color:var(--text)}
@@ -117,10 +117,10 @@ const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : 
 if (tg) { tg.ready(); tg.expand(); }
 const API = 'https://sahar-shop.dostonravshanov1006800.workers.dev';
 const $ = id => document.getElementById(id);
-const STR = {new:'Новый',awaiting_payment:'Ожидает оплату',paid:'Оплачен',confirmed:'Подтверждён',packing:'Собирается',shipping:'В доставке',delivered:'Доставлен',cancelled:'Отменён',refunded:'Возврат'};
+const STR = {new:'Новый',awaiting_payment:'Принят',paid:'Принят',confirmed:'Принят',packing:'Принят',shipping:'В доставке',delivered:'Доставлен',done:'Доставлен',cancelled:'Отменён',refunded:'Отменён'};
 const STC = s => ({new:'st-new',awaiting_payment:'st-awaiting_payment',paid:'st-paid',confirmed:'st-confirmed',packing:'st-packing',shipping:'st-shipping',delivered:'st-delivered',cancelled:'st-cancelled',refunded:'st-refunded'}[s]||'st-new');
-const NEXT = { new:['confirmed','cancelled'], awaiting_payment:['paid','cancelled'], paid:['confirmed','refunded'], confirmed:['packing','cancelled'], packing:['shipping'], shipping:['delivered'], delivered:[], cancelled:['new'], refunded:[] };
-const BTNT = { confirmed:'✅ Подтвердить', cancelled:'❌ Отменить', paid:'💰 Оплачен', refunded:'↩️ Возврат', packing:'📦 Собирается', shipping:'🚚 В доставку', delivered:'🏁 Доставлен', new:'↩️ Возвратить' };
+const NEXT = { new:['confirmed','cancelled'], awaiting_payment:['confirmed','cancelled'], paid:['confirmed','cancelled'], confirmed:['shipping','cancelled'], packing:['shipping','cancelled'], shipping:['delivered'], delivered:[], cancelled:[], refunded:[] };
+const BTNT = { confirmed:'✅ Принять', cancelled:'❌ Отменить', shipping:'🚚 В доставку', delivered:'🏁 Доставлен' };
 function escHtml(x){ return String(x||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 let busy = false;
 async function guard(fn){
@@ -139,7 +139,8 @@ const S = { pendingChatPhoto: '' };
 let threadTimer = null, TAB = 'dash', cats = [], prodsCache = [], chatTid = 0, editPid = null, editBannerId = null, editCatId = null, pfImages = [];
 let plQ = '', plCat = 'all', plHidden = false, plOut = false, plSel = new Set();
 const TABS = [['dash','📊 Дашборд'],['orders','📦 Заказы'],['products','🍯 Товары'],['design','🎨 Оформление'],['clients','👥 Клиенты'],['chat','💬 Сообщения'],['more','⋯ Ещё']];
-function renderTabs(){ $('tabs').innerHTML = TABS.map(([id,n])=>`<button class="tab ${TAB===id?'on':''}" onclick="TAB='${id}';renderTabs();render()">${n}</button>`).join(''); }
+function renderTabs(){ $('tabs').innerHTML = TABS.map(([id,n])=>`<button class="tab ${TAB===id?'on':''}" onclick="TAB='${id}';renderTabs();render()">${n}</button>`).join('');
+  const el = document.querySelector('.tab.on'); if (el) el.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }); }
 async function render(){
   const c = $('content');
   try {
@@ -162,7 +163,7 @@ async function renderDash(){
   <div class="cards">
     <div class="stat"><div class="sl">Новые</div><div class="sv" style="color:var(--gold2)">${s.new}</div></div>
     <div class="stat"><div class="sl">Всего заказов</div><div class="sv">${s.orders}</div></div>
-    <div class="stat"><div class="sl">Выручка</div><div class="sv">$${s.revenue_usd.toLocaleString('en-US')}</div></div>
+    <div class="stat"><div class="sl">Выручка</div><div class="sv">${s.revenue_rub!=null?((s.revenue_rub).toLocaleString('ru-RU')+' ₽'):('$'+s.revenue_usd.toLocaleString('en-US'))}</div><div class="muted" style="font-size:10.5px">~$${s.revenue_usd.toLocaleString('en-US')}</div></div>
     <div class="stat"><div class="sl">Клиенты</div><div class="sv">${s.clients}</div></div>
   </div>
   <div class="card row"><div><b>Магазин открыт</b><div class="muted" style="font-size:12px">${s.shop_open?'Заказы принимаются':'Витрина видна, заказы выключены'}</div></div>
@@ -195,7 +196,7 @@ function ordCard(o){ return `
       ${o.comment?'<br>💬 '+escHtml(o.comment):''}
     </div>
     <div class="row" style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-      <span class="gold" style="font-size:16px">${o.total_local}</span>
+      <span class="gold" style="font-size:16px">${o.total_local||'—'}</span>
       ${(NEXT[o.status]||[]).map(st2=>`<button class="btn btn-xs ${st2==='cancelled'||st2==='refunded'?'btn-del':'btn-gold'}" onclick="setStatus(${o.id},'${st2}')">${BTNT[st2]}</button>`).join('')}
     </div>
     ${o.delivery!=='courier'||o.status==='shipping'?`<div class="field" style="margin-top:8px"><label>Трек-номер</label><input id="trk${o.id}" value="${o.tracking||''}" onchange="setTracking(${o.id},this.value)"></div>`:''}
@@ -317,7 +318,7 @@ function openProductForm(){
   <div class="serif" style="font-size:19px;font-weight:700">${p?'Изменить товар':'Новый товар'}</div>
   <div class="field"><label>Фотографии (до 8) — первое = обложка в каталоге</label>
     <div id="pfGrid" class="ph-grid">${photoGridHtml()}</div>
-    ${pfImages.length < 8 ? `<button class="btn btn-gold blk" style="margin-top:9px" onclick="if(pfImages.length>=8){toast('Максимум 8 фото');return;}\$('multiPhotoFile').click()">🖼 Добавить фото (автосжатие + обрезка 1:1)</button>` : '<div class="muted" style="margin-top:8px;font-size:12px">Достигнут лимит 8 фото</div>'}
+    ${pfImages.length < 8 ? `<button class="btn btn-gold blk" style="margin-top:9px" onclick="if(pfImages.length>=8){toast('Максимум 8 фото');return;}\$('multiPhotoFile').click()">🖼 Добавить фото (автосжатие + обрезка 1:1)</button><div class="muted" style="margin-top:6px;font-size:11.5px">Загружайте фото без надписей (SAHAR, «ручная работа») — текст на фото не должен обрезаться</div>` : '<div class="muted" style="margin-top:8px;font-size:12px">Достигнут лимит 8 фото</div>'}
   </div>
   <div class="field"><label>Название (RU)</label><input id="pfNameRu" value="${p?escHtml(p.name_ru):''}"></div>
   <div class="field"><label>Name (EN)</label><input id="pfNameEn" value="${p?escHtml(p.name_en||''):''}"></div>
