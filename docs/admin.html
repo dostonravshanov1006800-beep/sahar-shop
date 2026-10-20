@@ -111,6 +111,9 @@ async function render(){
     if (TAB==='products') return renderProducts();
     if (TAB==='clients') return renderClients();
     if (TAB==='chat') return renderChatList();
+    if (TAB==='cats') return renderCats();
+    if (TAB==='banners') return renderBannersAdm();
+    if (TAB==='promos') return renderPromos();
     if (TAB==='more') return renderMore();
   } catch(e){ c.innerHTML = `<div class="empty">Ошибка: ${e.message}</div>`; }
 }
@@ -138,7 +141,7 @@ async function toggleShop(open){
 }
 // ---------- Заказы ----------
 let ordersCache = [], ordQuery = '';
-function ordMatches(o){ return !ordQuery || ('#'+o.id+' '+(o.client.first_name||'')+' '+(o.client.username||'')+' '+(o.phone||'')+' '+(o.city||'')).toLowerCase().includes(ordQuery); }
+function ordMatches(o){ const cl=o.client||{}; return !ordQuery || ('#'+o.id+' '+(cl.first_name||'')+' '+(cl.username||'')+' '+(o.phone||'')+' '+(o.city||'')+' '+(o.tracking||'')).toLowerCase().includes(ordQuery); }
 function ordCard(o){ return `
   <div class="card">
     <div class="row" style="display:flex;justify-content:space-between;align-items:center">
@@ -162,7 +165,7 @@ function ordCard(o){ return `
 function copyAddr(id){ const o = ordersCache.find(x=>x.id===id); if(!o) return; const a=[o.country,o.city,o.address].filter(Boolean).join(', ')+' · '+o.phone; navigator.clipboard && navigator.clipboard.writeText(a); toast('Скопировано'); }
 function exportCsv(){
   const rows = [['id','дата','клиент','телефон','страна','город','адрес','сумма','оплата','статус','состав'].join(';')];
-  ordersCache.forEach(o=>rows.push([o.id,(o.created_at||'').slice(0,16),o.client.first_name,o.phone,o.country,o.city,String(o.address).replace(/;/g,','),o.total_local,o.payment_method,o.status,o.items.map(i=>i.name_ru+' x'+i.qty).join(', ')].map(x=>String(x||'').replace(/;/g,',')).join(';')));
+  ordersCache.forEach(o=>rows.push([o.id,(o.created_at||'').slice(0,16),(o.client||{}).first_name||'',o.phone,o.country,o.city,String(o.address||'').replace(/;/g,','),o.total_local,o.payment_method,o.status,(o.items||[]).map(i=>i.name_ru+' x'+i.qty).join(', ')].map(x=>String(x||'').replace(/;/g,',')).join(';')));
   const blob = new Blob(['\ufeff'+rows.join('\n')], {type:'text/csv;charset=utf-8'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'sahar_orders.csv'; a.click(); toast('CSV скачан');
 }
@@ -229,7 +232,7 @@ function openProductForm(){
   <div class="kb" id="pfBadges">${['hit','new','premium','limited'].map(b=>`<button class="${p&&(p.badges||[]).includes(b)?'on':''}" onclick="this.classList.toggle('on')">${{hit:'Хит',new:'Новинка',premium:'Premium',limited:'Ограниченно'}[b]}</button>`).join('')}</div>
   <div class="kb"><button id="pfPerish" class="${p&&p.perishable?'on':''}" onclick="this.classList.toggle('on')">⏰ Скоропортящийся</button></div>
   <div class="field"><label>Фото (галерея или URL)</label>
-    <div style="display:flex;gap:8px"><button class="btn btn-ghost btn-xs" onclick="$('photoFile').click()">🖼 Загрузить</button><input id="pfImage" value="${p?(p.image_url||''):''}" style="flex:1"></div></div>
+    <div style="display:flex;gap:8px"><button class="btn btn-ghost btn-xs" onclick="S.pickTarget='product';$('photoFile').click()">🖼 Загрузить</button><input id="pfImage" value="${p?(p.image_url||''):''}" style="flex:1"></div></div>
   <img id="pfPreview" class="img-prev ${p&&p.image_url?'':'hidden'}" src="${p&&p.image_url?p.image_url:''}">
   <button class="btn btn-gold blk" onclick="saveProduct()">💾 Сохранить</button>
   <button class="btn btn-ghost blk" onclick="closeSheet()">Отмена</button>`);
@@ -258,9 +261,13 @@ async function onPickPhoto(ev){
   try {
     const b64 = await new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>{ const c=document.createElement('canvas'); const sc=Math.min(1,900/Math.max(img.width,img.height)); c.width=img.width*sc;c.height=img.height*sc; c.getContext('2d').drawImage(img,0,0,c.width,c.height); res(c.toDataURL('image/jpeg',.85)); }; img.onerror=rej; img.src=URL.createObjectURL(f); });
     const r = await api('/admin/upload', { b64: b64.split(',')[1], mime:'image/jpeg' });
-    if (TAB==='chat' && chatTid && !$('pfImage')) { S.pendingChatPhoto = r.url; toast('Фото готово — нажмите ➤'); }
-    else if ($('bnImg')) { $('bnImg').value = r.url; $('pfPreview').src = r.url; $('pfPreview').classList.remove('hidden'); toast('Фото загружено'); }
-    else { $('pfImage').value = r.url; $('pfPreview').src = r.url; $('pfPreview').classList.remove('hidden'); toast('Фото загружено'); }
+    const target = S.pickTarget || ($('sheet').classList.contains('open') ? ($('bnImg') ? 'banner' : 'product') : (TAB==='chat' && chatTid ? 'chat' : ''));
+    S.pickTarget = '';
+    if (target === 'chat' && chatTid) { S.pendingChatPhoto = r.url; toast('Фото готово — нажмите ➤'); }
+    else if (target === 'banner' && $('bnImg')) { $('bnImg').value = r.url; toast('Фото загружено'); }
+    else if (target === 'product' && $('pfImage')) { $('pfImage').value = r.url; $('pfPreview').src = r.url; $('pfPreview').classList.remove('hidden'); toast('Фото загружено'); }
+    else if ($('bnImg')) { $('bnImg').value = r.url; toast('Фото загружено'); }
+    else { S.pendingChatPhoto = r.url; toast('Фото готово — нажмите ➤'); }
   } catch(e){ toast('Не удалось: ' + e.message); }
   ev.target.value='';
 }
@@ -272,7 +279,7 @@ async function renderClients(){
     <div style="flex:1"><b>${c.first_name||'Клиент'}</b> <span class="muted" style="font-size:12px">${c.username?'@'+c.username:''}</span>
       <div class="muted" style="font-size:12px">Заказов: ${c.orders} · Потрачено ~$${c.spent_usd}</div></div>
     <div style="display:flex;gap:6px"><a class="btn btn-ghost btn-xs" href="https://t.me/${c.username||'user'}">✈️</a>
-    <button class="btn btn-gold btn-xs" onclick="chatTid=${c.telegram_id};renderThread()">💬</button></div>
+    <button class="btn btn-gold btn-xs" onclick="TAB='chat';renderTabs();chatTid=${c.telegram_id};renderThread()">💬</button></div>
   </div>`).join('') || '<div class="empty">Клиентов пока нет</div>';
 }
 // ---------- Чат ----------
@@ -290,7 +297,7 @@ async function renderThread(){
   <div id="thread" style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
   ${msgs.map(m=>`<div style="max-width:85%;padding:9px 13px;border-radius:15px;align-self:${m.from_admin?'flex-end':'flex-start'};background:${m.from_admin?'var(--text)':'var(--surface)'};color:${m.from_admin?'var(--bg)':'var(--text)'}">${escHtml(m.text)}${m.photo_url?`<img src="${escHtml(m.photo_url)}" style="max-width:160px;border-radius:9px;margin-top:5px">`:''}<div style="font-size:9.5px;opacity:.6;margin-top:3px">${(m.at||'').slice(11,16)}</div></div>`).join('') || '<div class="empty">Пусто</div>'}</div>
   <div class="frow" style="margin-top:12px"><div class="field" style="margin:0"><input id="replyIn" placeholder="Ответ…" onkeydown="if(event.key==='Enter')sendReply()"></div>
-  <button class="btn btn-ghost" style="flex:none" onclick="$('photoFile').click()">🖼</button>
+  <button class="btn btn-ghost" style="flex:none" onclick="S.pickTarget='chat';$('photoFile').click()">🖼</button>
   <button class="btn btn-gold" onclick="sendReply()">➤</button></div>`;
   window.scrollTo(0, document.body.scrollHeight);
   if (threadTimer) clearInterval(threadTimer);
@@ -313,15 +320,24 @@ async function renderMore(){
   <button class="btn btn-gold blk" onclick="openBroadcast()">📣 Рассылка клиентам</button>
   <button class="btn btn-gold blk" onclick="renderSettingsAdm()">⚙️ Настройки: курсы, оплата, доставка, анимации</button>`;
 }
+function editCat(id){
+  const c = cats.find(x=>x.id===id); if (!c) return;
+  const n = prompt('Название категории (RU):', c.name_ru);
+  if (n !== null && n.trim()) guard(async()=>{ await api('/admin/category', { category: { id, name_ru: n.trim() } }); }).then(()=>{ toast('Сохранено'); renderCats(); });
+}
+function addCat(){
+  const n = prompt('Название новой категории (RU):', '');
+  if (n && n.trim()) guard(async()=>{ await api('/admin/category', { category: { name_ru: n.trim() } }); }).then(()=>{ toast('Добавлена'); renderCats(); });
+}
 async function renderCats(){
   const d = await api('/admin/products');
   cats = d.categories;
   $('content').innerHTML = `<button class="btn btn-ghost blk" onclick="TAB='more';renderTabs();render()">← Ещё</button>
   <div class="sect-t">Категории</div>
   ${cats.map(c=>`<div class="card row"><div style="flex:1"><b>${c.name_ru}</b><div class="muted" style="font-size:12px">${c.name_en||''}</div></div>
-    <button class="btn btn-ghost btn-xs" onclick="const n=prompt('Название RU:', '${c.name_ru}');if(n!==null&&n!==''){api('/admin/category',{category:{id:${c.id},name_ru:n}}).then(()=>{toast('Сохранено');renderCats()})}">✏️</button>
-    <button class="btn btn-del btn-xs" onclick="if(confirm('Удалить категорию?'))api('/admin/category/delete',{id:${c.id}}).then(()=>{toast('Удалена');renderCats()})">🗑</button></div>`).join('')}
-  <button class="btn btn-gold blk" onclick="const n=prompt('Название новой категории (RU):');if(n){api('/admin/category',{category:{name_ru:n}}).then(()=>{toast('Добавлена');renderCats()})}">＋ Категория</button>`;
+    <button class="btn btn-ghost btn-xs" onclick="editCat(${c.id})">✏️ ${escHtml(c.name_ru)}</button>
+    <button class="btn btn-del btn-xs" onclick="if(confirm('Удалить категорию «'+cats.find(x=>x.id===${c.id}).name_ru+'»? (товары останутся)'))guard(async()=>{ await api('/admin/category/delete',{id:${c.id}}); }).then(()=>{toast('Удалена');renderCats()})">🗑</button></div>`).join('')}
+  <button class="btn btn-gold blk" onclick="addCat()">＋ Категория</button>`;
 }
 let bannersCache = [];
 async function renderBannersAdm(){
@@ -341,7 +357,7 @@ function openBannerForm(){
   <div class="field"><label>Заголовок (RU)</label><input id="bnT" value="${b?escHtml(b.title_ru):''}"></div>
   <div class="field"><label>Подпись (RU)</label><input id="bnS" value="${b?escHtml(b.sub_ru):''}"></div>
   <div class="field"><label>Ссылка на фото (URL или загрузка)</label>
-  <div style="display:flex;gap:8px"><button class="btn btn-ghost btn-xs" onclick="$('photoFile').click()">🖼 Загрузить</button><input id="bnImg" style="flex:1" value="${b?escHtml(b.image_url):''}"></div></div>
+  <div style="display:flex;gap:8px"><button class="btn btn-ghost btn-xs" onclick="S.pickTarget='banner';$('photoFile').click()">🖼 Загрузить</button><input id="bnImg" style="flex:1" value="${b?escHtml(b.image_url):''}"></div></div>
   <img id="pfPreview" class="img-prev ${b&&b.image_url?'':'hidden'}" src="${b?escHtml(b.image_url):''}">
   <button class="btn btn-gold blk" onclick="saveBanner()">💾 Сохранить</button>
   <button class="btn btn-ghost blk" onclick="closeSheet()">Отмена</button>`);
@@ -414,12 +430,16 @@ function saveRates(){ guard(async ()=>{
 }); }
 async function saveAnim(){
   if (!pendingAnim) { toast('Сначала выберите пресет'); return; }
-  await api('/admin/settings', { settings: { anim: pendingAnim } });
-  toast('Анимация «'+pendingAnim+'» применена к витрине');
+  guard(async ()=>{
+    const r = await api('/admin/settings'); const s2 = r.settings || r;
+    s2.anim = pendingAnim;
+    await api('/admin/settings', { settings: s2 });
+    toast('Анимация «'+pendingAnim+'» применена к витрине');
+  })();
 }
 function saveCountries(){ guard(async ()=>{
   const r = await api('/admin/settings'); const s = r.settings || r;
-  s.countries = s.countries.map(c2 => ({ ...c2, courier_usd:Number($('cr_'+c2.code).value)||0, postal_usd:Number($('po_'+c2.code).value)||0, free_from_usd:Number($('fr_'+c2.code).value)||0 }));
+  s.countries = (s.countries||[]).map(c2 => ({ ...c2, courier_usd:Number(($('cr_'+c2.code)||{}).value)||c2.courier_usd||0, postal_usd:Number(($('po_'+c2.code)||{}).value)||c2.postal_usd||0, free_from_usd:Number(($('fr_'+c2.code)||{}).value)||c2.free_from_usd||0 }));
   await api('/admin/settings', { settings: s }); toast('Доставка обновлена');
 }); }
 async function savePayments(){
