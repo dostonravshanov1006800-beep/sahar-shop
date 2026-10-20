@@ -25,7 +25,7 @@ async function validateInitData(initData, botToken) {
   const hash = params.get('hash');
   if (!hash) return null;
   const authDate = Number(params.get('auth_date') || 0);
-  if (authDate && Date.now() / 1000 - authDate > 86400) return null; // срок жизни ≤ 24 ч
+  if (!authDate || Date.now() / 1000 - authDate > 86400) return null; // подпись ≤ 24 ч, auth_date обязательна
   params.delete('hash');
   const dataCheckString = [...params.entries()]
     .sort((a, b) => a[0].localeCompare(b[0]))
@@ -57,7 +57,7 @@ async function rateOk(env, kind, tid, max = 10) {
   await env.SHOP.put(key, String(n + 1), { expirationTtl: 65 });
   return true;
 }
-const clamp = (s2, n) => String(s2 || '').slice(0, n);
+const clamp = (s2, n) => Array.from(String(s2 || '')).slice(0, n).join('');
 
 // ---------- Настройки по умолчанию (создаются при первом запуске, редактируются в админке) ----------
 const DEFAULT_SETTINGS = {
@@ -235,10 +235,13 @@ async function handle(request, env) {
       let total_usd = 0;
       for (const it of items) {
         if (!prodIds.includes(it.id)) continue;
+        const qty = it.qty | 0;
+        if (qty <= 0) continue;
         const prod = await J.get(env, 'prod:' + it.id);
         if (!prod || prod.is_active === false || prod.is_deleted) continue;
-        orderItems.push({ id: prod.id, name_ru: prod.name_ru, qty: Math.max(1, Math.min(99, it.qty | 0)), price_usd: prod.price_usd });
-        total_usd += prod.price_usd * Math.max(1, it.qty | 0);
+        if ((prod.stock || 0) < qty) return json({ ok: false, error: 'out_of_stock' }, 400);
+        orderItems.push({ id: prod.id, name_ru: prod.name_ru, qty: Math.min(99, qty), price_usd: prod.price_usd });
+        total_usd += prod.price_usd * Math.min(99, qty);
       }
       if (!orderItems.length) return json({ ok: false, error: 'empty' }, 400);
       const c = (s.countries || []).find(x => x.code === country);
@@ -267,7 +270,8 @@ async function handle(request, env) {
       }
       const giftPack = gift && gift.premium_pack ? 3 : 0;
       const grand_usd = Math.round((total_usd - discount + shipping + giftPack) * 100) / 100;
-      const id = await J.get(env, 'next_order', 1);
+      let id = await J.get(env, 'next_order', 1);
+      while (await J.get(env, 'order:' + id)) id++; // анти-коллизия
       const rate = s.rates[c.currency] || 1;
       const order = {
         id, client: { telegram_id: user.id, first_name: user.first_name || '', username: user.username || '' },
@@ -279,7 +283,7 @@ async function handle(request, env) {
         history: [{ status: payment_method === 'cash' ? 'new' : 'awaiting_payment', at: new Date().toISOString() }],
       };
       await J.put(env, 'order:' + id, order);
-      const ids = await J.get(env, 'order_ids', []); ids.push(id); await J.put(env, 'order_ids', ids.slice(-500));
+      const ids = await J.get(env, 'order_ids', []); ids.push(id); await J.put(env, 'order_ids', ids);
       await J.put(env, 'next_order', id + 1);
       if (idem_key) { await env.SHOP.put('idem:' + idem_key, String(id), { expirationTtl: 86400 }); }
       // клиентская база
@@ -608,19 +612,20 @@ async function handleUpdate(env, u) {
       const pr = await J.get(env, 'pending_reply:' + tid);
       if (pr && !m.text?.startsWith('/')) {
         await J.del(env, 'pending_reply:' + tid);
+        const rtxt = m.text || m.caption || '';
         const msgs = await J.get(env, 'msgs:' + pr, []);
-        msgs.push({ from_admin: true, text: m.text.slice(0, 2000), at: new Date().toISOString(), read: true });
+        msgs.push({ from_admin: true, text: clamp(rtxt, 2000), at: new Date().toISOString(), read: true });
         await J.put(env, 'msgs:' + pr, msgs.slice(-200));
         if (m.photo) {
           const fid = m.photo[m.photo.length - 1].file_id;
-          await tgApi(env, 'sendPhoto', { chat_id: pr, photo: fid, caption: '🤍 SAHAR' });
-        } else {
-          await tgApi(env, 'sendMessage', { chat_id: pr, parse_mode: 'HTML', text: '🤍 <b>SAHAR</b>\n' + esc(m.text) });
+          await tgApi(env, 'sendPhoto', { chat_id: pr, photo: fid, caption: clamp('🤍 SAHAR' + (rtxt ? '\n' + rtxt : ''), 1000) });
+        } else if (rtxt) {
+          await tgApi(env, 'sendMessage', { chat_id: pr, parse_mode: 'HTML', text: '🤍 <b>SAHAR</b>\n' + esc(rtxt) });
         }
         await tgApi(env, 'sendMessage', { chat_id: tid, text: '✅ Ответ отправлен покупателю.' });
         return;
       }
-      await sendOrders(env, tid);
+      await tgApi(env, 'sendMessage', { chat_id: tid, text: 'ℹ️ Команды: /orders — последние заказы. Для ответа клиенту используйте кнопку 💬 Ответить из уведомления.' });
       return;
     }
     // клиент
@@ -670,7 +675,13 @@ async function handleUpdate(env, u) {
         o.status = status; (o.history = o.history || []).push({ status, at: new Date().toISOString() });
         await J.put(env, 'order:' + id, o);
         try { await tgApi(env, 'sendMessage', { chat_id: o.client.telegram_id, parse_mode: 'HTML', text: '🤍 <b>SAHAR</b> — статус заказа <b>#' + o.id + '</b>\n\n' + STATUS_RU[status] }); } catch (e) {}
+        try {
+          const kb2 = await orderKb(id, status);
+          if (cb.message && kb2) await tgApi(env, 'editMessageReplyMarkup', { chat_id: cb.message.chat.id, message_id: cb.message.message_id, reply_markup: kb2 });
+        } catch (e) {}
         await tgApi(env, 'answerCallbackQuery', { callback_query_id: cb.id, text: 'Статус #' + id + ': ' + STATUS_RU[status] });
+      } else {
+        await tgApi(env, 'answerCallbackQuery', { callback_query_id: cb.id, text: 'Заказ не найден' });
       }
       return;
     }
