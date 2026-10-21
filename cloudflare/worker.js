@@ -790,7 +790,7 @@ async function handle(request, env) {
         const clIds = (await J.get(env, 'client_ids', [])).slice(0, 40); // лимит подзапросов Worker
         let sent = 0, failed = 0;
         for (const tid of clIds) {
-          const r = await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text: CE_BRAND() + ' <b>SAHAR</b>\n' + esc(text), reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=37' } }]] } });
+          const r = await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text: CE_BRAND() + ' <b>SAHAR</b>\n' + esc(text), reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=38' } }]] } });
           if (r && r.ok) sent++; else failed++;
         }
         return json({ ok: true, sent, failed });
@@ -845,7 +845,7 @@ async function sendOrders(env, tid, own = false) {
     list.push('#' + o.id + ' · ' + CE_STAT(o.status) + ' ' + (STATUS_RU[o.status] || '—') + ' · <b>' + esc(amt) + '</b>' + (own ? '' : ' · ' + esc(o.client_name || (o.client || {}).first_name || '—')) + (own && o.tracking ? ' · 📍' + esc(o.tracking) : ''));
     if (list.length >= 5) break;
   }
-  const kb = own ? { inline_keyboard: [[{ text: 'Открыть магазин', icon_custom_emoji_id: CE.shop, web_app: { url: env.WEBAPP_URL + '?v=37' } }]] } : undefined;
+  const kb = own ? { inline_keyboard: [[{ text: 'Открыть магазин', icon_custom_emoji_id: CE.shop, web_app: { url: env.WEBAPP_URL + '?v=38' } }]] } : undefined;
   await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', ...(kb ? { reply_markup: kb } : {}),
     text: list.length ? (own ? CE_BRAND() + ' <b>Ваши заказы</b>\n\n' : tgE(CE.list, '🗂') + ' <b>Последние заказы</b>\n\n') + list.join('\n')
       : (own ? TEXTS.buyerOrdersEmpty() : TEXTS.ownerOrdersEmpty()) });
@@ -853,7 +853,7 @@ async function sendOrders(env, tid, own = false) {
 
 async function handleUpdate(env, u) {
   try { await ensureProfile(env); } catch (e) {}
-  const SHOP_URL = env.WEBAPP_URL + '?v=37';
+  const SHOP_URL = env.WEBAPP_URL + '?v=38';
   const shopBtn = (t) => ({ text: t, icon_custom_emoji_id: CE.shop, web_app: { url: SHOP_URL } });
   if (u.message) {
     const m = u.message, tid = m.from.id;

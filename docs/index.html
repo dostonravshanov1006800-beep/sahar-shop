@@ -817,6 +817,7 @@ function showCopySheet(x){
   document.getElementById('copyOvBtn').onclick = ()=> bg.remove();
   bg.onclick = (e)=>{ if (e.target === bg) bg.remove(); };
 }
+window.addEventListener('error', function(e){ try { console.warn('UI error:', e.message, 'at', e.filename, e.lineno); } catch(_){} });
 const SHARE_BOT = 'Konfety_krft_deliciousbot';
 async function shareProduct(p){
   haptic();
