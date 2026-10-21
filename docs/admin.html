@@ -94,6 +94,34 @@ input[type=range]{width:100%;margin-top:14px;accent-color:#4B2B20}
 .msg-card.unread .msg-ava{background:linear-gradient(135deg,#a8853b,#d9b96a)}
 .unread-pill{display:inline-flex;align-items:center;gap:4px;margin-left:7px;padding:3px 8px;border-radius:10px;background:#a8853b;color:#fff;font-size:11px;font-weight:800;vertical-align:middle;box-shadow:0 2px 6px rgba(168,133,59,.35)}
 .msg-card .btn{flex:none}
+
+/* ===== XL UPGRADE v38: шире, мощнее, слаще ===== */
+body{font-size:15px}
+#app{padding-left:18px;padding-right:18px}
+.sect-t{font-size:16.5px;font-weight:800;margin-top:22px}
+.card{padding:16px 17px;border-radius:18px;box-shadow:0 8px 24px rgba(35,26,16,.08)}
+.card.row{gap:12px}
+.stat{padding:18px 17px;border-radius:20px}
+.stat .sv{font-size:30px;letter-spacing:-.02em}
+.stat .sl{font-size:11.5px;font-weight:800;letter-spacing:.02em}
+.btn{padding:13px 18px;font-size:14px;border-radius:14px;box-shadow:0 3px 10px rgba(35,26,16,.1);transition:transform .12s}
+.btn:active{transform:scale(.96)}
+.btn-gold{box-shadow:0 4px 14px rgba(168,133,59,.35)}
+.tabs{gap:8px;margin:18px 0 16px}
+.tab{padding:12px 16px;font-size:14px;border-radius:14px;font-weight:800}
+.tab.on{box-shadow:0 4px 14px rgba(168,133,59,.4)}
+input,select,textarea{font-size:15px;padding:12px 14px;border-radius:13px}
+.field label{font-size:12px;font-weight:800;letter-spacing:.02em}
+.empty{padding:28px 16px;border-radius:18px}
+.msg-card{padding:15px 16px}
+.sheet{max-width:920px !important}
+@media (min-width:760px){
+  #app{max-width:960px;padding:calc(env(safe-area-inset-top,0px) + 28px) 30px 120px}
+  .cards{grid-template-columns:repeat(4,1fr);gap:14px}
+  .stat .sv{font-size:34px}
+  .btn{padding:14px 22px;font-size:14.5px}
+  .card{padding:18px 20px}
+}
 </style>
 </head>
 <body>
