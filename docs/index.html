@@ -1373,6 +1373,19 @@ function selAddrI(i){ haptic(); S.selAddr = i; save(); renderAddrList(); }
 function delAddr(i){ if (S.selAddr === i) S.selAddr = -1; else if (S.selAddr > i) S.selAddr--; S.addrs.splice(i,1); save(); renderAddrList(); }
 
 // ---------- профиль ----------
+function cycleLang(){
+  haptic();
+  const L = ['ru','en','uz'];
+  S.lang = L[(L.indexOf(S.lang || 'ru') + 1) % L.length];
+  try { localStorage.setItem('sahar_lang', S.lang); } catch(e){}
+  save(); openProfile();
+}
+function cycleTheme(){
+  haptic();
+  const T = ['auto','light','dark'];
+  S.theme = T[(T.indexOf(S.theme || 'auto') + 1) % T.length];
+  save(); applyTheme(); openProfile();
+}
 function openProfile(){
   S.view='profile'; renderNav();
   const u = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) || {};
