@@ -241,6 +241,23 @@ nav.kb{transform:translateY(110%)}
 .ostep .ol.on{background:var(--pri)}
 .olabels{display:flex;margin-top:6px}
 .olabels div{flex:1;font-size:9px;font-weight:700;color:var(--muted);text-align:center;letter-spacing:.02em}
+.cryptocard{position:relative;overflow:hidden;border-radius:20px;padding:20px 46px 18px 18px;background:linear-gradient(150deg,#1c1915,#0a0806 55%,#000);color:#fff;box-shadow:0 14px 34px rgba(12,9,6,.38);border:1px solid rgba(255,255,255,.09)}
+.cryptocard .cc-ring{display:none}
+.cc-top{display:flex;justify-content:space-between;align-items:center;font-size:10.5px;font-weight:800;letter-spacing:.14em;color:rgba(255,255,255,.88)}
+.cc-bank{display:flex;align-items:center;gap:9px}
+.cc-logo{width:34px;height:34px;border-radius:50%;object-fit:cover;border:1.5px solid rgba(255,255,255,.55);box-shadow:0 2px 8px rgba(0,0,0,.5)}
+.cc-brand{font-family:'Playfair Display',serif;font-size:12.5px;letter-spacing:.34em;font-weight:800;color:#fff}
+.cc-mid{display:flex;justify-content:space-between;align-items:center;margin-top:16px}
+.cc-chip2{width:34px;height:26px;border-radius:6px;background:linear-gradient(135deg,#f7f7f7,#c4c4c4);position:relative;display:grid;grid-template-columns:1fr 1fr;gap:1px;padding:3px}
+.cc-chip2 i{background:rgba(0,0,0,.22);border-radius:1.5px}
+.cc-num{font-size:27px;font-weight:800;letter-spacing:.02em;margin-top:14px;color:#fff}
+.cc-sub{font-size:12.5px;font-weight:600;color:rgba(255,255,255,.72);margin-top:3px}
+.cc-bot{display:flex;justify-content:space-between;align-items:flex-end;margin-top:14px;font-size:11.5px;font-weight:700;color:rgba(255,255,255,.88)}
+.cc-holder{letter-spacing:.03em}
+.cc-addr{position:absolute;right:12px;top:62px;bottom:12px;writing-mode:vertical-rl;transform:rotate(180deg);font-size:9px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700;letter-spacing:.06em;color:rgba(255,255,255,.6);overflow:hidden;word-break:break-all;cursor:pointer}
+.cc-cta{display:flex;gap:10px;margin-top:12px}
+.cc-cta button{flex:1;background:#fff;color:#15120f;border:1px solid #fff;border-radius:14px;padding:13px 0;font-size:13.5px;font-weight:800;cursor:pointer}
+.cc-cta button:active{opacity:.85}
 .msg-row{display:flex;gap:7px;align-items:flex-end;animation:fadeUp .25s ease}
 .msg-row.them{align-self:flex-start}
 .msg-row.me{align-self:flex-end;justify-content:flex-end}
@@ -273,24 +290,24 @@ nav.kb{transform:translateY(110%)}
 .paycard .pc-mc i{width:22px;height:22px;border-radius:50%;display:block}
 .pc-cta{display:flex;gap:8px;margin-top:12px}
 .pc-sum{text-align:center;font-weight:800;font-size:15px;margin-top:14px}
-.cryptocard{position:relative;overflow:hidden;border-radius:22px;background:radial-gradient(circle at 30% 28%,#2196F3 0%,#1565C0 42%,#0D47A1 100%);padding:18px;color:#fff;max-width:400px;margin:16px auto 0;min-height:190px;padding-right:44px;box-shadow:0 18px 42px rgba(13,71,161,.4),inset 0 1px 0 rgba(255,255,255,.18)}
+
 .cryptocard::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 22% 78%,rgba(255,255,255,.05) 0 2px,transparent 3px),radial-gradient(circle at 68% 22%,rgba(255,255,255,.07) 0 2px,transparent 3px),radial-gradient(circle at 82% 64%,rgba(255,255,255,.05) 0 2px,transparent 3px);pointer-events:none}
-.cryptocard .cc-ring{position:absolute;width:240px;height:240px;border-radius:50%;background:repeating-radial-gradient(circle at center,rgba(255,255,255,.045) 0 1px,transparent 1px 5px);top:-40px;left:20%;opacity:.55;pointer-events:none}
-.cc-top{display:flex;justify-content:space-between;align-items:center;position:relative}
-.cc-bank{display:flex;align-items:center;gap:7px;font-weight:800;font-size:12.5px;letter-spacing:.08em}
+
+
+
 .cc-diamond{width:19px;height:19px;flex:none}
-.cc-brand{font-weight:800;font-size:12.5px;letter-spacing:.14em;opacity:.9}
-.cc-mid{display:flex;align-items:center;gap:12px;margin-top:14px;position:relative}
-.cc-num{font-weight:800;font-size:21px;letter-spacing:.04em;margin-top:12px;white-space:nowrap}
-.cc-sub{font-size:12.5px;font-weight:600;opacity:.92;margin-top:3px}
-.cc-bot{margin-top:12px;font-size:11px;font-weight:700;letter-spacing:.06em;opacity:.85}
-.cc-chip2{width:34px;height:26px;border-radius:7px;background:linear-gradient(135deg,#EDEDF2,#B9BAC2);display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:5px}
-.cc-chip2 i{background:rgba(120,124,140,.55);border-radius:3px;display:block}
-.cc-addr{position:absolute;right:12px;top:54px;bottom:12px;writing-mode:vertical-rl;transform:rotate(180deg);font-size:8.5px;letter-spacing:.07em;font-weight:600;line-height:1.3;word-break:break-all;opacity:.8;overflow:hidden;text-align:right}
+
+
+
+
+
+
+
+
 .cc-rates{text-align:center;font-size:13px;font-weight:700;margin-top:8px;color:#3D302A}
 .cc-rates span{color:#1E88C7}
-.cc-cta{display:flex;gap:8px;margin-top:12px}
-.cc-cta button{flex:1;background:#2AABEE;color:#fff;border:none;border-radius:24px;padding:13px 14px;font-weight:700;font-size:13.5px;cursor:pointer;font-family:'Manrope',sans-serif}
+
+
 .pc-sum span{color:var(--caramel-deep)}
 .photo-view{position:fixed;inset:0;z-index:120;background:rgba(20,12,8,.95);display:flex;align-items:center;justify-content:center;padding:24px}
 .photo-view img{max-width:100%;max-height:100%;border-radius:16px}
@@ -452,12 +469,12 @@ function cryptoCardHtml(sumLocal, sumUsd){
   const gram = sumUsd / (cr.gram || 1.4);
   return `<div class="cryptocard">
     <div class="cc-ring"></div>
-    <div class="cc-top"><span class="cc-bank"><svg class="cc-diamond" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.95)" stroke-width="1.5" stroke-linejoin="round"><path d="M12 2l7 7-7 13L5 9z"/><path d="M5 9h14M12 2v20"/></svg>TON · USDT / GRAM</span><span class="cc-brand">CRYPTO</span></div>
+    <div class="cc-top"><span class="cc-bank"><img class="cc-logo" src="assets/bot-avatar.jpg" alt="SAHAR"><svg style="display:none" class="cc-diamond" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.95)" stroke-width="1.5" stroke-linejoin="round"><path d="M12 2l7 7-7 13L5 9z"/><path d="M5 9h14M12 2v20"/></svg>TON · USDT / GRAM</span><span class="cc-brand">CRYPTO</span></div>
     <div class="cc-mid"><div class="cc-chip2"><i></i><i></i><i></i><i></i></div><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.92)" stroke-width="1.7" stroke-linecap="round"><path d="M6 8.5a8 8 0 0 1 0 7"/><path d="M9.5 6.5a11 11 0 0 1 0 11"/><path d="M13 4.5a14 14 0 0 1 0 15"/><path d="M16.5 2.8a17.5 17.5 0 0 1 0 18.4"/></svg></div>
     <div class="cc-num">${usdt.toFixed(2)} USDT</div>
     <div class="cc-sub">≈ ${gram.toFixed(1)} GRAM · ${sumLocal}</div>
     <div class="cc-bot"><span class="cc-holder">${t('paySum')}: ${sumLocal}</span></div>
-    <div class="cc-addr">${escHtml(addr)}</div>
+    <div class="cc-addr" onclick="copyText(${JSON.stringify(addr)})">${escHtml(addr)}</div>
   </div>
   <div class="cc-cta">
     <button class="press" onclick="copyText(${JSON.stringify(addr)})">${t('addrCopy')}</button>
@@ -752,6 +769,20 @@ function renderSections(){
 }
 
 // ---------- товар ----------
+function openLegal(doc){
+  const D = {
+    offer: { title: 'Оферта и обработка данных', body: '<p style="font-weight:800;font-size:15px">1. Общие положения</p><p>Настоящая оферта регулирует покупку кондитерских изделий через бот-магазин SAHAR. Оформляя заказ, вы принимаете её условия.</p><p style="font-weight:800;font-size:15px">2. Заказ</p><p>Заказ считается принятым после подтверждения администратором в чате. Мы вправе отклонить заказ при отсутствии товара.</p><p style="font-weight:800;font-size:15px">3. Оплата</p><p>Оплата производится переводом на карту или криптовалютой (USDT/GRAM, сеть TON) до или при получении, если не согласовано иное.</p><p style="font-weight:800;font-size:15px">4. Доставка</p><p>Сроки и стоимость зависят от страны и способа доставки, отображаются при оформлении. Свежие десерты доставляются курьером в день заказа.</p><p style="font-weight:800;font-size:15px">5. Возврат</p><p>Продукция надлежащего качества обмену и возврату не подлежит (пищевая продукция). При браке — замена или полный возврат после фото-подтверждения.</p><p style="font-weight:800;font-size:15px">6. Персональные данные</p><p>Мы обрабатываем имя, телефон и адрес исключительно для исполнения заказа. Данные не передаются третьим лицам и удаляются по запросу.</p><p style="font-weight:800;font-size:15px">7. Поддержка</p><p>Вопросы — через чат в приложении или напрямую боту. Ответ в течение 24 часов.</p>' },
+    privacy: { title: 'Политика конфиденциальности', body: '<p>Мы храним только данные, необходимые для доставки заказа: имя, телефон, адрес, историю заказов. Данные используются для исполнения заказов и уведомлений о их статусе. Не продаются и не передаются третьим лицам. Вы можете запросить удаление данных письмом в чат поддержки.</p>' },
+    faq: { title: 'Частые вопросы', body: '<p style="font-weight:800">Как заказать?</p><p>Откройте магазин, добавьте сладости в корзину и оформите заказ за 4 шага.</p><p style="font-weight:800">Как оплатить?</p><p>Переводом на карту или криптовалютой USDT/GRAM (сеть TON). Реквизиты приходят сразу после оформления.</p><p style="font-weight:800">Сколько идёт доставка?</p><p>Курьер по городу — в день заказа, почта/службы доставки — по тарифам страны, сроки видны при оформлении.</p><p style="font-weight:800">Можно ли вернуть?</p><p>Пищевая продукция не подлежит возврату; брак меняем после фото.</p>' }
+  };
+  const d = D[doc] || D.offer;
+  let bg = document.getElementById('legalOv'); if (bg) bg.remove();
+  bg = document.createElement('div');
+  bg.id = 'legalOv';
+  bg.style.cssText = 'position:fixed;inset:0;z-index:135;background:var(--bg);overflow-y:auto;padding:0 18px calc(env(safe-area-inset-bottom,0px) + 30px)';
+  bg.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:14px 0;position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--hair);z-index:1"><button class="icon-btn press" onclick="document.getElementById(\'legalOv\').remove()">←</button><b style="font-size:16px">' + d.title + '</b></div><div style="line-height:1.75;font-size:14px;font-weight:500;color:var(--text);padding-top:14px">' + d.body + '</div>';
+  document.body.appendChild(bg);
+}
 async function copyText(x){
   x = String(x == null ? '' : x);
   try { if (navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(x); toast('Скопировано ✓'); return; } } catch (e) {}
