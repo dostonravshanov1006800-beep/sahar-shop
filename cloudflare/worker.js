@@ -351,11 +351,20 @@ async function handle(request, env) {
         if (qty <= 0) continue;
         const prod = await J.get(env, 'prod:' + it.id);
         if (!prod || prod.is_active === false || prod.is_deleted) return json({ ok: false, error: 'product_unavailable' }, 400);
-        if ((prod.stock || 0) < qty) return json({ ok: false, error: 'out_of_stock' }, 400);
-        orderItems.push({ id: prod.id, name_ru: prod.name_ru, qty: Math.min(99, qty), price_usd: prod.price_usd });
+        if (!prod.preorder && (prod.stock || 0) < qty) return json({ ok: false, error: 'out_of_stock' }, 400);
+        orderItems.push({ id: prod.id, name_ru: prod.name_ru + (prod.preorder ? ' (предзаказ)' : ''), qty: Math.min(99, qty), price_usd: prod.price_usd });
         total_usd += prod.price_usd * Math.min(99, qty);
       }
       if (!orderItems.length) return json({ ok: false, error: 'empty' }, 400);
+      let bonusPts = 0;
+      try {
+        const raw = Math.max(0, body.bonus_spend|0);
+        if (raw > 0) {
+          const bal = await J.get(env, 'bonus:' + user.id, 0);
+          bonusPts = Math.min(raw, bal, Math.floor(total_usd * 0.3 * 100));
+          if (bonusPts > 0) { await J.put(env, 'bonus:' + user.id, bal - bonusPts); total_usd = Math.max(0, total_usd - bonusPts / 100); }
+        }
+      } catch (e) {}
       const c = (s.countries || []).find(x => x.code === country);
       if (!c) return json({ ok: false, error: 'bad_country' }, 400);
       const cryptoOk = s.crypto && s.crypto.on === true && s.crypto.addr;
@@ -465,6 +474,17 @@ async function handle(request, env) {
       }
       return json(msgs);
     }
+    if (p === '/api/bonus') {
+      if (!user) return json({ ok:false, error:'forbidden' },403);
+      const pts = await J.get(env, 'bonus:' + user.id, 0);
+      return json({ pts: pts || 0 });
+    }
+    if (p === '/api/restock' && request.method === 'POST') {
+      if (!user) return json({ ok:false, error:'forbidden' },403);
+      const pid = body.pid|0; if (!pid) return json({ok:false,error:'bad_request'},400);
+      const k = 'rw:' + pid; const wch = await J.get(env, k, []); if (!wch.includes(user.id)) { wch.push(user.id); await J.put(env, k, wch); }
+      return json({ ok:true });
+    }
     if (p === '/api/support' && request.method === 'POST') {
       if (!user) return json({ ok: false, error: 'forbidden' }, 403);
       if (!(await rateOk(env, 'sup', user.id, 10))) return json({ ok: false, error: 'rate_limited' }, 429);
@@ -547,6 +567,7 @@ async function handle(request, env) {
             }
           }
           o.status = status; (o.history = o.history || []).push({ status, at: new Date().toISOString() });
+          if (status === 'delivered' && !o.bonus_awarded) { try { const bal = await J.get(env, 'bonus:' + o.client.telegram_id, 0); const aw = Math.max(0, Math.floor(o.total_usd || 0)); if (aw > 0) await J.put(env, 'bonus:' + o.client.telegram_id, bal + aw); o.bonus_awarded = true; } catch (e) {} }
           try { await tgSend(env, 'sendMessage', { chat_id: o.client.telegram_id, parse_mode: 'HTML',
             text: CE_BRAND() + ' <b>SAHAR — статус заказа #' + o.id + '</b>\n\n' + CE_STAT(status) + ' <b>' + (STATUS_RU[status] || '—') + '</b>' + (status === 'shipping' && o.tracking ? '\n🔖 Трек-номер: <code>' + esc(o.tracking) + '</code>' : '') }); } catch (e) {}
         }
@@ -572,10 +593,15 @@ async function handle(request, env) {
           if (!old) return json({ ok: false, error: 'not_found' }, 404);
           const { is_deleted, ...safe } = b;
           await J.put(env, 'prod:' + b.id, { ...old, ...safe, id: old.id });
+          if ((old.stock || 0) === 0 && (b.stock || 0) > 0) {
+            const wch = await J.get(env, 'rw:' + b.id, []);
+            for (const t of wch) { try { await tgSend(env, 'sendMessage', { chat_id: Number(t), parse_mode: 'HTML', text: CE_BRAND() + ' <b>SAHAR — снова в наличии</b>\n' + esc(safe.name_ru || old.name_ru || 'Товар') + ' снова можно заказать!', reply_markup: { inline_keyboard: [[shopBtn('Открыть магазин')]] } }); } catch (e) {} }
+            if (wch.length) await J.del(env, 'rw:' + b.id);
+          }
         } else {
           if (!b.name_ru || !String(b.name_ru).trim() || b.price_usd === undefined) return json({ ok: false, error: 'bad_request' }, 400);
           const id = await J.get(env, 'next_prod', 1);
-          await J.put(env, 'prod:' + id, { id, name_ru: b.name_ru, name_en: b.name_en || '', name_uz: b.name_uz || '', desc_ru: b.desc_ru || '', desc_en: b.desc_en || '', desc_uz: b.desc_uz || '', cat: b.cat || 1, price_usd: Number(b.price_usd) || 0, old_price_usd: b.old_price_usd ? Number(b.old_price_usd) : 0, weight: b.weight || '', stock: b.stock | 0, image_url: b.image_url || '', badges: b.badges || [], perishable: !!b.perishable, is_active: true, sort: b.sort | 0, images: Array.isArray(b.images) ? b.images.slice(0, 8) : [] });
+          await J.put(env, 'prod:' + id, { id, name_ru: b.name_ru, name_en: b.name_en || '', name_uz: b.name_uz || '', desc_ru: b.desc_ru || '', desc_en: b.desc_en || '', desc_uz: b.desc_uz || '', cat: b.cat || 1, price_usd: Number(b.price_usd) || 0, old_price_usd: b.old_price_usd ? Number(b.old_price_usd) : 0, weight: b.weight || '', stock: b.stock | 0, image_url: b.image_url || '', badges: b.badges || [], perishable: !!b.perishable, preorder: !!b.preorder, sale_until: b.sale_until || '', is_active: true, sort: b.sort | 0, images: Array.isArray(b.images) ? b.images.slice(0, 8) : [] });
           const ids = await J.get(env, 'prod_ids', []); ids.push(id); await J.put(env, 'prod_ids', ids);
           await J.put(env, 'next_prod', id + 1);
         }
@@ -764,7 +790,7 @@ async function handle(request, env) {
         const clIds = (await J.get(env, 'client_ids', [])).slice(0, 40); // лимит подзапросов Worker
         let sent = 0, failed = 0;
         for (const tid of clIds) {
-          const r = await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text: CE_BRAND() + ' <b>SAHAR</b>\n' + esc(text), reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=31' } }]] } });
+          const r = await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text: CE_BRAND() + ' <b>SAHAR</b>\n' + esc(text), reply_markup: { inline_keyboard: [[{ text: '🛍 Открыть магазин', web_app: { url: env.WEBAPP_URL + '?v=32' } }]] } });
           if (r && r.ok) sent++; else failed++;
         }
         return json({ ok: true, sent, failed });
@@ -819,7 +845,7 @@ async function sendOrders(env, tid, own = false) {
     list.push('#' + o.id + ' · ' + CE_STAT(o.status) + ' ' + (STATUS_RU[o.status] || '—') + ' · <b>' + esc(amt) + '</b>' + (own ? '' : ' · ' + esc(o.client_name || (o.client || {}).first_name || '—')) + (own && o.tracking ? ' · 📍' + esc(o.tracking) : ''));
     if (list.length >= 5) break;
   }
-  const kb = own ? { inline_keyboard: [[{ text: 'Открыть магазин', icon_custom_emoji_id: CE.shop, web_app: { url: env.WEBAPP_URL + '?v=31' } }]] } : undefined;
+  const kb = own ? { inline_keyboard: [[{ text: 'Открыть магазин', icon_custom_emoji_id: CE.shop, web_app: { url: env.WEBAPP_URL + '?v=32' } }]] } : undefined;
   await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', ...(kb ? { reply_markup: kb } : {}),
     text: list.length ? (own ? CE_BRAND() + ' <b>Ваши заказы</b>\n\n' : tgE(CE.list, '🗂') + ' <b>Последние заказы</b>\n\n') + list.join('\n')
       : (own ? TEXTS.buyerOrdersEmpty() : TEXTS.ownerOrdersEmpty()) });
@@ -827,7 +853,7 @@ async function sendOrders(env, tid, own = false) {
 
 async function handleUpdate(env, u) {
   try { await ensureProfile(env); } catch (e) {}
-  const SHOP_URL = env.WEBAPP_URL + '?v=31';
+  const SHOP_URL = env.WEBAPP_URL + '?v=32';
   const shopBtn = (t) => ({ text: t, icon_custom_emoji_id: CE.shop, web_app: { url: SHOP_URL } });
   if (u.message) {
     const m = u.message, tid = m.from.id;
@@ -853,7 +879,7 @@ async function handleUpdate(env, u) {
           await tgSend(env, 'sendMessage', { chat_id: tid, parse_mode: 'HTML', text: TEXTS.ownerStart(),
             reply_markup: { inline_keyboard: [
               [{ text: 'Последние заказы', icon_custom_emoji_id: CE.list, callback_data: 'owner_orders' }],
-              [{ text: 'Открыть CRM', icon_custom_emoji_id: CE.shop, web_app: { url: env.WEBAPP_URL + 'admin.html?v=31' } }],
+              [{ text: 'Открыть CRM', icon_custom_emoji_id: CE.shop, web_app: { url: env.WEBAPP_URL + 'admin.html?v=32' } }],
               [shopBtn('Открыть магазин')],
             ] } });
           try { await tgApi(env, 'setChatMenuButton', { chat_id: tid, menu_button: { type: 'web_app', text: '🛍 Магазин', web_app: { url: SHOP_URL } } }); } catch (e) {}
@@ -989,6 +1015,7 @@ async function handleUpdate(env, u) {
               }
             }
             o.status = status; (o.history = o.history || []).push({ status, at: new Date().toISOString() });
+          if (status === 'delivered' && !o.bonus_awarded) { try { const bal = await J.get(env, 'bonus:' + o.client.telegram_id, 0); const aw = Math.max(0, Math.floor(o.total_usd || 0)); if (aw > 0) await J.put(env, 'bonus:' + o.client.telegram_id, bal + aw); o.bonus_awarded = true; } catch (e) {} }
             await J.put(env, 'order:' + id, o);
             let sent = true;
             try { await tgSend(env, 'sendMessage', { chat_id: o.client.telegram_id, parse_mode: 'HTML', text: buyerStatusText(o) }); }

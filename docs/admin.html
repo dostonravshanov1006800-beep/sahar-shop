@@ -337,12 +337,13 @@ function openProductForm(){
   </div>
   <div class="frow">
     <div class="field"><label>Остаток (0 = нет в наличии)</label><input id="pfStock" type="number" value="${p?p.stock:10}"></div>
+    <div class="field"><label>Акция до (таймер на витрине)</label><input id="pfSaleUntil" type="datetime-local" value="${p&&p.sale_until?p.sale_until.slice(0,16):''}"></div>
     <div class="field"><label>Порядок на витрине</label><input id="pfSort" type="number" value="${p?(p.sort||0):0}"></div>
   </div>
   <div class="field"><label>Бейджи</label>
     <div class="kb" id="pfBadges">${['hit','new','sale','premium','limited'].map(b=>`<button class="${p&&(p.badges||[]).includes(b)?'on':''}" onclick="this.classList.toggle('on')">${{hit:'Хит',new:'Новинка',sale:'Акция',premium:'Premium',limited:'Ограниченно'}[b]}</button>`).join('')}</div>
   </div>
-  <div class="kb"><button id="pfPerish" class="${p&&p.perishable?'on':''}" onclick="this.classList.toggle('on')">⏰ Скоропортящийся</button></div>
+  <div class="kb"><button id="pfPerish" class="${p&&p.perishable?'on':''}" onclick="this.classList.toggle('on')">⏰ Скоропортящийся</button><button id="pfPre" class="${p&&p.preorder?'on':''}" onclick="this.classList.toggle('on')">🛎 Предзаказ (продаётся при 0 остатка)</button></div>
   <button class="btn btn-gold blk" onclick="saveProduct()">💾 Сохранить</button>
   <button class="btn btn-ghost blk" onclick="closeSheet()">Отмена</button>`);
 }
@@ -378,7 +379,7 @@ function saveProduct(){ guard(async ()=>{
     weight:$('pfWeight').value.trim(), stock:Number($('pfStock').value)||0,
     sort:Number($('pfSort').value)||0,
     badges:[...$('pfBadges').querySelectorAll('.on')].map(b=>({'Хит':'hit','Новинка':'new','Акция':'sale','Premium':'premium','Ограниченно':'limited'}[b.textContent])).filter(Boolean),
-    perishable:$('pfPerish').classList.contains('on'), images: pfImages.slice(0,8),
+    perishable:$('pfPerish').classList.contains('on'), preorder:$('pfPre').classList.contains('on'), sale_until: $('pfSaleUntil').value ? new Date($('pfSaleUntil').value).toISOString() : '', images: pfImages.slice(0,8),
     image_url: pfImages[0] || (editPid ? ((prodsCache.find(x=>x.id===editPid)||{}).image_url||'') : '') };
   if (editPid) product.id = editPid;
   if (!product.name_ru || !product.price_usd){ toast('Название и цена обязательны'); return; }
