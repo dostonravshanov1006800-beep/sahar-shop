@@ -85,6 +85,15 @@ input[type=range]{width:100%;margin-top:14px;accent-color:#4B2B20}
 .bulkbar select,.bulkbar input{border:none;border-radius:9px;padding:8px;font:700 12px 'Manrope'}
 .kb button{padding:8px 12px;border-radius:10px;border:1px solid var(--hair);background:var(--surface);font:700 12px 'Manrope';cursor:pointer;color:var(--text)}
 .kb button.on{border-color:var(--gold1);color:var(--gold2)}
+
+.tbadge{display:inline-block;min-width:17px;height:17px;padding:0 4px;margin-left:5px;border-radius:9px;background:#e5484d;color:#fff;font-size:10.5px;font-weight:800;line-height:17px;text-align:center;vertical-align:middle}
+.msg-card{position:relative;padding:13px 14px;border-radius:16px;background:#fff;border:1px solid rgba(20,15,5,.07);box-shadow:0 2px 12px rgba(20,15,5,.05);margin-top:10px;display:flex;align-items:center;gap:11px;transition:box-shadow .2s}
+.msg-card:active{box-shadow:0 1px 5px rgba(20,15,5,.08)}
+.msg-card.unread{border:1.5px solid #a8853b;background:linear-gradient(135deg,#fdf8ee 0%,#fff 70%)}
+.msg-ava{width:40px;height:40px;border-radius:13px;flex:none;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:#fff;background:linear-gradient(135deg,#4a352f,#8a6a4f);box-shadow:0 3px 8px rgba(74,53,47,.25)}
+.msg-card.unread .msg-ava{background:linear-gradient(135deg,#a8853b,#d9b96a)}
+.unread-pill{display:inline-flex;align-items:center;gap:4px;margin-left:7px;padding:3px 8px;border-radius:10px;background:#a8853b;color:#fff;font-size:11px;font-weight:800;vertical-align:middle;box-shadow:0 2px 6px rgba(168,133,59,.35)}
+.msg-card .btn{flex:none}
 </style>
 </head>
 <body>
@@ -139,9 +148,13 @@ const S = { pendingChatPhoto: '' };
 let threadTimer = null, TAB = 'dash', cats = [], prodsCache = [], chatTid = 0, editPid = null, editBannerId = null, editCatId = null, pfImages = [];
 let plQ = '', plCat = 'all', plHidden = false, plOut = false, plSel = new Set();
 const TABS = [['dash','📊 Дашборд'],['orders','📦 Заказы'],['products','🍯 Товары'],['design','🎨 Оформление'],['clients','👥 Клиенты'],['chat','💬 Сообщения'],['more','⋯ Ещё']];
-function renderTabs(){ $('tabs').innerHTML = TABS.map(([id,n])=>`<button class="tab ${TAB===id?'on':''}" onclick="TAB='${id}';renderTabs();render()">${n}</button>`).join('');
+function renderTabs(){ $('tabs').innerHTML = TABS.map(([id,n])=>`<button class="tab ${TAB===id?'on':''}" onclick="TAB='${id}';renderTabs();render()">${n}${id==='chat'?'<span class="tbadge" id="tabMsgBadge" style="display:none"></span>':''}</button>`).join('');
   const el = document.querySelector('.tab.on'); if (el) el.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }); }
+let unreadTotal = 0;
+async function pollUnread(){ try { const cl = await api('/admin/clients'); unreadTotal = cl.reduce((s,c)=>s+(c.unread||0),0); const b = document.getElementById('tabMsgBadge'); if (b){ b.textContent = unreadTotal > 99 ? '99+' : unreadTotal; b.style.display = unreadTotal > 0 ? '' : 'none'; } } catch(e){} }
+setInterval(pollUnread, 25000);
 async function render(){
+  pollUnread();
   const c = $('content');
   try {
     if (TAB==='dash') return renderDash();
@@ -436,11 +449,14 @@ async function renderClients(){
 // ---------- Чат ----------
 async function renderChatList(){
   const cl = await api('/admin/clients');
-  const c2 = cl.filter(c=>c.last_at);
-  $('content').innerHTML = (c2.length ? c2.map(c=>`
-  <div class="card row"><div style="flex:1"><b>${c.first_name||'Клиент'}</b>
-    <div class="muted" style="font-size:12px">${c.last_at.slice(0,16).replace('T',' ')}</div></div>
-    <button class="btn btn-gold btn-xs" onclick="chatTid=${c.telegram_id};renderThread()">Открыть</button></div>`).join('') : '<div class="empty">Сообщений пока нет</div>');
+  const c2 = cl.filter(c=>c.last_at).sort((a,b)=>((b.unread||0)-(a.unread||0)) || (b.last_at||'').localeCompare(a.last_at||''));
+  const totalUnread = c2.reduce((s,c)=>s+(c.unread||0),0);
+  $('content').innerHTML = `<div class="muted" style="font-size:12.5px;margin-top:12px">${totalUnread?'<b style="color:#a8853b">🔔 Новых сообщений: '+totalUnread+'</b> — непрочитанные диалоги сверху':'Все сообщения прочитаны'}</div>` + (c2.length ? c2.map(c=>`
+  <div class="msg-card ${c.unread?'unread':''}" onclick="chatTid=${c.telegram_id};renderThread()">
+    <div class="msg-ava">${(c.first_name||'К').trim().charAt(0).toUpperCase()||'К'}</div>
+    <div style="flex:1;min-width:0"><b>${c.first_name||'Клиент'}</b>${c.unread?`<span class="unread-pill">🔔 ${c.unread}</span>`:''}
+      <div class="muted" style="font-size:12px">${c.last_at.slice(0,16).replace('T',' ')}</div></div>
+    <button class="btn btn-gold btn-xs" onclick="event.stopPropagation();chatTid=${c.telegram_id};renderThread()">Открыть</button></div>`).join('') : '<div class="empty">Сообщений пока нет</div>');
 }
 let threadCount = 0;
 function admChatHtml(msgs){
