@@ -457,8 +457,9 @@ function payCardHtml(sumLocal){
     <div class="pc-bot"><span class="pc-holder">${escHtml(holder)}</span></div>
   </div>
   ${sumLocal?`<div class="pc-sum">${t('paySum')}: <span>${sumLocal}</span></div>`:''}
+  ${num?`<div style="margin-top:12px;background:var(--cream);border:1.5px dashed var(--hair);border-radius:14px;padding:12px 14px"><div style="font-size:10.5px;font-weight:800;color:var(--muted);letter-spacing:.05em;margin-bottom:6px">НОМЕР КАРТЫ · НАЖМИТЕ, ЧТОБЫ ВЫДЕЛИТЬ</div><div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:17.5px;font-weight:800;user-select:all;-webkit-user-select:all;letter-spacing:.02em;word-break:break-all;text-align:center">${escHtml(fmt)}</div><div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:6px">${escHtml(holder)} · ${escHtml(c.bank||'')}</div></div>`:''}
   <div class="pc-cta">
-    <button class="btn btn-pri press" style="flex:1" onclick="copyText(${JSON.stringify(num)})">${t('payCopy')}</button>
+    <button class="btn btn-pri press" style="flex:1" onclick="copyText(${escAttr(num)})">${t('payCopy')}</button>
   </div>
   <div class="dprog" style="text-align:left;margin-top:12px">${t('payCheck')}</div>`;
 }
@@ -474,12 +475,13 @@ function cryptoCardHtml(sumLocal, sumUsd){
     <div class="cc-num">${usdt.toFixed(2)} USDT</div>
     <div class="cc-sub">≈ ${gram.toFixed(1)} GRAM · ${sumLocal}</div>
     <div class="cc-bot"><span class="cc-holder">${t('paySum')}: ${sumLocal}</span></div>
-    <div class="cc-addr" onclick="copyText(${JSON.stringify(addr)})">${escHtml(addr)}</div>
+    <div class="cc-addr" onclick="copyText(${escAttr(addr)})">${escHtml(addr)}</div>
   </div>
   <div class="cc-cta">
-    <button class="press" onclick="copyText(${JSON.stringify(addr)})">${t('addrCopy')}</button>
+    <button class="press" onclick="copyText(${escAttr(addr)})">${t('addrCopy')}</button>
     <button class="press" onclick="closeOvl();S.view='chat';renderNav();openChatView()">${t('sentCheck')}</button>
   </div>
+  ${addr?`<div style="margin-top:12px;background:var(--cream);border:1.5px dashed var(--hair);border-radius:14px;padding:12px 14px"><div style="font-size:10.5px;font-weight:800;color:var(--muted);letter-spacing:.05em;margin-bottom:6px">TON-АДРЕС · НАЖМИТЕ, ЧТОБЫ ВЫДЕЛИТЬ</div><div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13.5px;font-weight:800;user-select:all;-webkit-user-select:all;word-break:break-all;line-height:1.5;text-align:center">${escHtml(addr)}</div></div>`:''}
   <div class="dprog" style="text-align:left;margin-top:12px">${t('payCheckCrypto')}</div>`;
 }
 function money(usd){
@@ -783,6 +785,7 @@ function openLegal(doc){
   bg.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:14px 0;position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--hair);z-index:1"><button class="icon-btn press" onclick="document.getElementById(\'legalOv\').remove()">←</button><b style="font-size:16px">' + d.title + '</b></div><div style="line-height:1.75;font-size:14px;font-weight:500;color:var(--text);padding-top:14px">' + d.body + '</div>';
   document.body.appendChild(bg);
 }
+function escAttr(x){ return JSON.stringify(x).replace(/&/g,'&amp;').replace(/"/g,'&quot;'); }
 async function copyText(x){
   x = String(x == null ? '' : x);
   try { if (navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(x); toast('Скопировано ✓'); return; } } catch (e) {}
@@ -1034,7 +1037,7 @@ function renderCheckoutStep(){
     html += `<h3 class="ovl-title" style="font-size:21px">${t('step3')}</h3>
       ${(()=>{ const bal = S.bonusPts||0; const sub = cartTotal() + (S.giftPack?3:0) - cartDiscount(); const max = Math.min(bal, Math.floor(sub*0.3*100)); if (bal<=0||max<=0) return ''; ck.bonus = Math.min(ck.bonus||0, max); return `<div class="opt press-h ${ck.bonus?'on':''}" onclick="ck.bonus=${ck.bonus?0:max};renderOvl()"><span class="ot">Бонусы: ${bal} · списать ${max} (−$${(max/100).toFixed(2)})</span><span class="radio"></span></div>`; })()}
       ${pays.length ? pays.map(p=>`<div class="opt press-h ${ck.payment===p.id?'on':''}" onclick="S.checkout.payment='${p.id}';renderOvl()"><span class="ot">${p.title_ru}</span><span class="radio"></span></div>`).join('') : `<div class="empty" style="padding:20px 8px"><div class="e-title">Нет доступных способов оплаты</div><div class="e-sub">Напишите нам в чат — подскажем варианты для вашей страны</div></div>`}
-      ${S.settings.pay_only_card ? `<div class="dprog" style="text-align:left">${t('payNoCard')}</div>` : (pm&&pm.instr_ru?`<div class="dprog" style="display:flex;align-items:center;gap:8px">${pm.instr_ru}<button class="btn btn-sec btn-xs press-h" style="flex:none;margin-left:auto" onclick="copyText(${JSON.stringify(pm.instr_ru)})">Скопировать</button></div>`:'')}
+      ${S.settings.pay_only_card ? `<div class="dprog" style="text-align:left">${t('payNoCard')}</div>` : (pm&&pm.instr_ru?`<div class="dprog" style="display:flex;align-items:center;gap:8px">${pm.instr_ru}<button class="btn btn-sec btn-xs press-h" style="flex:none;margin-left:auto" onclick="copyText(${escAttr(pm.instr_ru)})">Скопировать</button></div>`:'')}
       <div style="display:flex;gap:10px;margin-top:16px"><button class="btn btn-sec press" style="flex:0 0 96px" onclick="ckStep(2)">Назад</button><button class="btn btn-pri press" style="flex:1" onclick="ckStep(4)">Далее</button></div>`;
   } else {
     const items = cartItems(); const c2 = S.country||{};
