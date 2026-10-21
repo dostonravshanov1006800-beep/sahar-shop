@@ -758,14 +758,33 @@ async function copyText(x){
   try {
     const ta = document.createElement('textarea');
     ta.value = x; ta.setAttribute('readonly','');
-    ta.style.cssText = 'position:fixed;top:-999px;left:-999px;opacity:0';
+    ta.style.cssText = 'position:fixed;top:0;left:0;width:2px;height:2px;opacity:.01;font-size:16px';
     document.body.appendChild(ta);
-    if (ta.nodeName === 'TEXTAREA'){ ta.focus(); ta.select(); ta.setSelectionRange(0, x.length); }
+    ta.focus(); ta.select(); ta.setSelectionRange(0, x.length);
     const ok = document.execCommand('copy');
     document.body.removeChild(ta);
     if (ok){ toast('Скопировано ✓'); return; }
   } catch (e) {}
-  if (tg && tg.showAlert) tg.showAlert('Скопируйте вручную:\n' + x); else toast('Не удалось скопировать');
+  showCopySheet(x);
+}
+function showCopySheet(x){
+  const old = document.getElementById('copyOvBg'); if (old) old.remove();
+  const bg = document.createElement('div');
+  bg.id = 'copyOvBg';
+  bg.style.cssText = 'position:fixed;inset:0;background:rgba(24,14,9,.55);z-index:130;display:flex;align-items:center;justify-content:center;padding:24px';
+  bg.innerHTML = '<div style="background:var(--card);color:var(--text);border-radius:20px;padding:22px;max-width:420px;width:100%;box-shadow:0 18px 50px rgba(0,0,0,.3)"><div style="font-weight:800;font-size:16px;margin-bottom:4px">Скопируйте реквизиты</div><div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:14px;line-height:1.45">Текст уже выделен — нажмите «Копировать» в меню. Если меню не появилось — коснитесь текста и удерживайте.</div><div id="copyVal" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:17px;font-weight:700;padding:14px;border:1.5px dashed var(--hair);border-radius:14px;background:var(--cream);user-select:all;-webkit-user-select:all;word-break:break-all;text-align:center">' + escHtml(x) + '</div><button id="copyOvBtn" class="btn btn-pri press" style="width:100%;margin-top:14px">Готово</button></div>';
+  document.body.appendChild(bg);
+  requestAnimationFrame(()=>{
+    try {
+      const el = document.getElementById('copyVal');
+      el.focus();
+      const r = document.createRange(); r.selectNodeContents(el);
+      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      if (document.execCommand('copy')) toast('Скопировано ✓');
+    } catch (e) {}
+  });
+  document.getElementById('copyOvBtn').onclick = ()=> bg.remove();
+  bg.onclick = (e)=>{ if (e.target === bg) bg.remove(); };
 }
 const SHARE_BOT = 'Konfety_krft_deliciousbot';
 async function shareProduct(p){
